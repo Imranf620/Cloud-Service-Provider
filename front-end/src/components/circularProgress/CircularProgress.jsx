@@ -21,7 +21,8 @@ const CircularProgressWithLabel = (props) => {
       },
 
       [`& .${gaugeClasses.valueArc}`]: {
-        fill: '#ffff',
+        // fill: '#ffff',
+        
       },
     }}
   

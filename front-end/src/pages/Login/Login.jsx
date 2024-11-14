@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Button } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -87,9 +88,9 @@ const Login = () => {
           <div className="mt-4 text-center">
             <p>
               Don't have an account?{" "}
-              <a href="/signup" className="text-[#7B1FA2] underline">
+              <Link to="/signup" className="text-[#7B1FA2] underline">
                 Sign Up
-              </a>
+              </Link>
             </p>
           </div>
         </div>

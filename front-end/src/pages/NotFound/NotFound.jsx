@@ -1,17 +1,29 @@
-import { Button } from '@mui/material'
-import React from 'react'
-import { Link } from 'react-router-dom'
+import React from "react";
+import { useNavigate } from "react-router-dom";
 
-const NotFound = () => {
+const NotFoundPage = () => {
+  const navigate = useNavigate();
+
+  const handleGoHome = () => {
+    navigate("/"); // Navigate to the homepage
+  };
+
   return (
-    <div className='flex flex-col gap-8 items-center justify-center w-screen h-screen bg-gray-200'>
-        <h1 className='text-6xl font-bold text-center'>404 - Page Not Found</h1>
-        <p className='text-center text-gray-500'>The page you're looking for might have been removed, had its name changed, or is temporarily unavailable.</p>
-        <Link to="/">
-        <Button variant='contained' color='secondary' >Go Back</Button>
-        </Link>
+    <div className="h-screen bg-gray-100 flex items-center justify-center">
+      <div className="text-center bg-white p-8 rounded-lg shadow-lg max-w-sm w-full">
+        <h1 className="text-6xl font-bold text-indigo-600">404</h1>
+        <p className="text-xl text-gray-700 my-4">
+          Oops! The page you're looking for cannot be found.
+        </p>
+        <button
+          onClick={handleGoHome}
+          className="text-indigo-600 hover:text-indigo-800 text-lg font-semibold"
+        >
+          Go to Home
+        </button>
+      </div>
     </div>
-  )
-}
+  );
+};
 
-export default NotFound
+export default NotFoundPage;

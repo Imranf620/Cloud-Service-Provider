@@ -4,9 +4,18 @@ import { Folder, Image, Description, Movie, FileCopy, Dashboard } from '@mui/ico
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
-const SideBar = () => {
+const SideBar = ({handleToggle}) => {
   const { isDarkMode } = useTheme();
   const location = useLocation();
+
+  const sidebarItems = [
+    { path: '', label: 'Dashboard', icon: <Dashboard style={{ color: 'white' }} /> },
+    { path: '/files', label: 'Files', icon: <Folder style={{ color: 'white' }} /> },
+    { path: '/images', label: 'Images', icon: <Image style={{ color: 'white' }} /> },
+    { path: '/documents', label: 'Documents', icon: <Description style={{ color: 'white' }} /> },
+    { path: '/media', label: 'Media', icon: <Movie style={{ color: 'white' }} /> },
+    { path: '/other', label: 'Other', icon: <FileCopy style={{ color: 'white' }} /> },
+  ];
 
   const getLinkClass = (path) => {
     return location.pathname === path ? 'bg-[#681c75]' : '';
@@ -17,46 +26,15 @@ const SideBar = () => {
       className={`w-64 fixed h-screen text-white ${isDarkMode ? 'bg-[#303030]' : 'bg-[#9C27B0]'}`}
     >
       <List>
-        <ListItem button component={Link} to="/dashboard" className={getLinkClass('/dashboard')}>
-          <ListItemIcon>
-            <Dashboard style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Dashboard" />
-        </ListItem>
-        <ListItem button component={Link} to="/files" className={getLinkClass('/files')}>
-          <ListItemIcon>
-            <Folder style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Files" />
-        </ListItem>
-        <Divider />
-        <ListItem button component={Link} to="/images" className={getLinkClass('/images')}>
-          <ListItemIcon>
-            <Image style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Images" />
-        </ListItem>
-        <Divider />
-        <ListItem button component={Link} to="/documents" className={getLinkClass('/documents')}>
-          <ListItemIcon>
-            <Description style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Documents" />
-        </ListItem>
-        <Divider />
-        <ListItem button component={Link} to="/media" className={getLinkClass('/media')}>
-          <ListItemIcon>
-            <Movie style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Media" />
-        </ListItem>
-        <Divider />
-        <ListItem button component={Link} to="/other" className={getLinkClass('/other')}>
-          <ListItemIcon>
-            <FileCopy style={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText primary="Other" />
-        </ListItem>
+        {sidebarItems.map((item, index) => (
+          <React.Fragment key={index}>
+            <ListItem onClick={handleToggle} button component={Link} to={`/dashboard${item.path}`} className={getLinkClass(item.path)}>
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={item.label} />
+            </ListItem>
+            {index < sidebarItems.length - 1 && <Divider />} {/* Add divider between items except the last one */}
+          </React.Fragment>
+        ))}
       </List>
     </div>
   );

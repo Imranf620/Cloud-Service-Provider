@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Avatar, Tooltip, Button } from '@mui/material';
-import {  Brightness4, Brightness7,  CloudUpload } from '@mui/icons-material';
+import { AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Avatar, Tooltip, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
+import { Brightness4, Brightness7, CloudUpload } from '@mui/icons-material';
 import MenuIcon from '@mui/icons-material/Menu';
+import { toast } from 'react-toastify';
 
-const Navbar = ({ toggleDarkMode, isDarkMode,handleToggle }) => {
+const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [openDialog, setOpenDialog] = useState(false);
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -18,18 +20,21 @@ const Navbar = ({ toggleDarkMode, isDarkMode,handleToggle }) => {
   };
 
   const handleFileChange = (event) => {
-    setSelectedFile(event.target.files[0]);
-    // Handle file upload logic here
-    console.log('Selected file:', event.target.files[0]);
+    const file = event.target.files[0];
+    setSelectedFile(file);
+    setOpenDialog(true); // Show confirmation dialog after file is selected
   };
 
-  const handleFileUpload = () => {
+  const handleConfirmUpload = () => {
     if (selectedFile) {
-      // Implement your file upload logic here (e.g., upload to server)
-      alert(`Uploading ${selectedFile.name}`);
-    } else {
-      alert('No file selected!');
+      toast.success(`Uploading ${selectedFile.name}`); // Replace with actual file upload logic
     }
+    setOpenDialog(false); // Close the dialog
+  };
+
+  const handleCancelUpload = () => {
+    setSelectedFile(null);
+    setOpenDialog(false); // Close the dialog and clear selected file
   };
 
   return (
@@ -38,8 +43,6 @@ const Navbar = ({ toggleDarkMode, isDarkMode,handleToggle }) => {
         <Typography variant="h6">Storify</Typography>
 
         <div className="flex items-center gap-4">
-          
-
           <Tooltip title="Upload File">
             <Button
               variant="contained"
@@ -66,7 +69,6 @@ const Navbar = ({ toggleDarkMode, isDarkMode,handleToggle }) => {
             anchorEl={anchorEl}
             open={menuOpen}
             onClose={handleMenuClose}
-            
           >
             <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
             <MenuItem onClick={handleMenuClose}>Subscriptions</MenuItem>
@@ -74,17 +76,34 @@ const Navbar = ({ toggleDarkMode, isDarkMode,handleToggle }) => {
             <MenuItem onClick={handleMenuClose}>Logout</MenuItem>
           </Menu>
 
-          <Tooltip title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+          <Tooltip className="flex items-center" title={isDarkMode ? "Light Mode" : "Dark Mode"}>
             <IconButton onClick={toggleDarkMode} color="inherit">
               {isDarkMode ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
-            <div className='md:hidden'>
-
-            <MenuIcon  onClick={handleToggle}/>
+            <div className="md:hidden">
+              <MenuIcon onClick={handleToggle} />
             </div>
           </Tooltip>
         </div>
       </Toolbar>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={openDialog} onClose={handleCancelUpload}>
+        <DialogTitle>Confirm File Upload</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to upload the file <strong>{selectedFile?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelUpload} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmUpload} color="primary">
+            Confirm
+          </Button>
+        </DialogActions>
+      </Dialog>
     </AppBar>
   );
 };
