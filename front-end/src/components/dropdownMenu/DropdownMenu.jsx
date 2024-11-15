@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { useTheme } from "../../context/ThemeContext";
 
 const DropdownMenu = ({ options }) => {
+  const { isDarkMode } = useTheme();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dropdownRef = useRef(null);
   const iconRef = useRef(null);
@@ -25,19 +27,29 @@ const DropdownMenu = ({ options }) => {
 
   return (
     <div className="relative">
+      {/* Menu Icon Button */}
       <button ref={iconRef} onClick={toggleMenu}>
-       <MoreVertIcon/>
+        <MoreVertIcon
+          style={{ color: isDarkMode ? "#ffffff" : "#000000" }}
+        />
       </button>
 
+      {/* Dropdown Menu */}
       {isMenuOpen && (
         <div
           ref={dropdownRef}
-          className="absolute right-0 mt-2 bg-white border border-gray-200 shadow-lg rounded-md w-40"
+          className={`absolute right-0 mt-2 w-40 border shadow-lg rounded-md ${
+            isDarkMode
+              ? "bg-[#303030] border-gray-700 text-white"
+              : "bg-white border-gray-200 text-gray-600"
+          }`}
         >
           {options.map((option, index) => (
             <button
               key={index}
-              className="w-full text-left px-4 py-2 text-sm text-gray-600 hover:bg-gray-100"
+              className={`w-full text-left px-4 py-2 text-sm hover:bg-opacity-80 ${
+                isDarkMode ? "hover:bg-gray-600" : "hover:bg-gray-100"
+              }`}
               onClick={option.onClick}
             >
               {option.label}

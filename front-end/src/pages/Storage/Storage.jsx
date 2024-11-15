@@ -94,7 +94,6 @@ const Storage = () => {
         </Grid>
       </Paper>
 
-      {/* Files Section */}
       <Typography variant="h6" sx={{ marginBottom: 2 }}>
         Files:
       </Typography>
@@ -179,7 +178,6 @@ const Storage = () => {
         </Typography>
       )}
 
-      {/* Pagination */}
       <Pagination
         count={Math.ceil(filteredFiles.length / filesPerPage)}
         page={page}

@@ -1,8 +1,23 @@
-import React, { useState } from 'react';
-import { AppBar, Toolbar, IconButton, Typography, Menu, MenuItem, Avatar, Tooltip, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material';
-import { Brightness4, Brightness7, CloudUpload } from '@mui/icons-material';
-import MenuIcon from '@mui/icons-material/Menu';
-import { toast } from 'react-toastify';
+import React, { useState } from "react";
+import {
+  AppBar,
+  Toolbar,
+  IconButton,
+  Typography,
+  Menu,
+  MenuItem,
+  Avatar,
+  Tooltip,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
+import { Brightness4, Brightness7, CloudUpload } from "@mui/icons-material";
+import MenuIcon from "@mui/icons-material/Menu";
+import { toast } from "react-toastify";
+import { Link } from "react-router-dom";
 
 const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
   const [anchorEl, setAnchorEl] = useState(null);
@@ -22,19 +37,30 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
-    setOpenDialog(true); // Show confirmation dialog after file is selected
+    setOpenDialog(true);
   };
 
   const handleConfirmUpload = () => {
     if (selectedFile) {
-      toast.success(`Uploading ${selectedFile.name}`); // Replace with actual file upload logic
+      toast.success(`Uploading ${selectedFile.name}`);
     }
-    setOpenDialog(false); // Close the dialog
+    setOpenDialog(false);
   };
 
   const handleCancelUpload = () => {
     setSelectedFile(null);
-    setOpenDialog(false); // Close the dialog and clear selected file
+    setOpenDialog(false);
+  };
+
+  const menuStyle = {
+    backgroundColor: isDarkMode ? "#424242" : "#9C27B0",
+    color: isDarkMode ? "#ffffff" : "#ffffff",
+  };
+
+  const menuItemStyle = {
+    "&:hover": {
+      backgroundColor: isDarkMode ? "#616161" : "#e0e0e0",
+    },
   };
 
   return (
@@ -51,11 +77,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
               component="label"
             >
               Upload
-              <input
-                type="file"
-                hidden
-                onChange={handleFileChange}
-              />
+              <input type="file" hidden onChange={handleFileChange} />
             </Button>
           </Tooltip>
 
@@ -66,17 +88,34 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
           </Tooltip>
 
           <Menu
+        
             anchorEl={anchorEl}
             open={menuOpen}
             onClose={handleMenuClose}
+            PaperProps={{
+              style: menuStyle,
+            }}
           >
-            <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
-            <MenuItem onClick={handleMenuClose}>Subscriptions</MenuItem>
-            <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
-            <MenuItem onClick={handleMenuClose}>Logout</MenuItem>
+            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+              Profile
+            </MenuItem>
+            <Link to="/packages">
+            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+              Subscriptions
+            </MenuItem>
+            </Link>
+            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+              Settings
+            </MenuItem>
+            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+              Logout
+            </MenuItem>
           </Menu>
 
-          <Tooltip className="flex items-center" title={isDarkMode ? "Light Mode" : "Dark Mode"}>
+          <Tooltip
+            className="flex items-center"
+            title={isDarkMode ? "Light Mode" : "Dark Mode"}
+          >
             <IconButton onClick={toggleDarkMode} color="inherit">
               {isDarkMode ? <Brightness7 /> : <Brightness4 />}
             </IconButton>
@@ -92,7 +131,8 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
         <DialogTitle>Confirm File Upload</DialogTitle>
         <DialogContent>
           <Typography>
-            Are you sure you want to upload the file <strong>{selectedFile?.name}</strong>?
+            Are you sure you want to upload the file{" "}
+            <strong>{selectedFile?.name}</strong>?
           </Typography>
         </DialogContent>
         <DialogActions>
