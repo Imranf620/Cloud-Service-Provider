@@ -26,8 +26,8 @@ const DropdownMenu = ({ options }) => {
   }, []);
 
   return (
-    <div className="relative">
-      {/* Menu Icon Button */}
+    <div className="relative z-50">
+    
       <button ref={iconRef} onClick={toggleMenu}>
         <MoreVertIcon
           style={{ color: isDarkMode ? "#ffffff" : "#000000" }}

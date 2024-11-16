@@ -72,7 +72,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
           <Tooltip title="Upload File">
             <Button
               variant="contained"
-              color="primary"
+              color="secondary"
               startIcon={<CloudUpload />}
               component="label"
             >
@@ -96,9 +96,11 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
               style: menuStyle,
             }}
           >
+            <Link to="/profile">
             <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
               Profile
             </MenuItem>
+            </Link>
             <Link to="/packages">
             <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
               Subscriptions

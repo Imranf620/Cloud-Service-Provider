@@ -6,6 +6,7 @@ export const dataTypes = [
       icon: "ArticleIcon",
       lastUpdated: "2022-05-15",
       color: "#FFA500",
+      link: "/dashboard/documents",
     },
     {
       id: 2,
@@ -14,6 +15,7 @@ export const dataTypes = [
       icon: "PermMediaIcon",
       lastUpdated: "2022-05-10",
       color: "#4CAF50",
+      link: "/dashboard/images",
     },
     {
       id: 3,
@@ -22,6 +24,7 @@ export const dataTypes = [
       icon: "VideoCallIcon",
       lastUpdated: "2022-05-12",
       color: "#008CBA",
+      link: "/dashboard/media",
     },
     {
       id: 4,
@@ -30,6 +33,7 @@ export const dataTypes = [
       icon: "PieChartIcon",
       lastUpdated: "2022-05-17",
       color: "#F00",
+      link: "/dashboard/other",
     },
   ];
 
