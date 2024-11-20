@@ -1,16 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import { toast } from "react-toastify";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { signUp } from "../../features/userSlice";
 
 const SignUp = () => {
+  const { user, response } = useSelector((state) => state.auth);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("")
   const [password, setPassword] = useState("");
   const [confirmPassword, setconfirmPassword] = useState("")
+  const dispath  =  useDispatch()
+  const navigate = useNavigate();
 
   const handleSignUp = () => {
     if (!email || !password) {
@@ -21,14 +26,29 @@ const SignUp = () => {
         toast.error("Passwords do not match.");
       return;
     }
-    const data = {email, name, password, confirmPassword}
-    console.log(data)
-    toast.success("Logged in successfully!");
+    const data = {email, name, password}
+      dispath(signUp(data))
+   
   };
 
   const handleGoogleSignUp = () => {
     toast.info("Google Sign-In clicked!");
   };
+
+
+
+  useEffect(() => {
+
+   response?.success === false
+   ? toast.error(response?.message)
+   : toast.success(response?.message);
+
+   if(user){
+     navigate("/");
+     
+   }
+  
+  }, [response, user]);
 
   return (
     <div className="w-full h-full bg-red-300  flex">

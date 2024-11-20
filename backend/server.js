@@ -3,11 +3,27 @@ import "dotenv/config";
 import cookieParser from "cookie-parser";
 import cron from "node-cron";
 import { deleteExpiredTrashedFiles } from "./controllers/trashCntroller.js";
+import helmet from "helmet"
+import cors from "cors"
+import path from "path";
 
 const port = process.env.PORT || 8800;
 const app = express();
 app.use(express.json());
 app.use(cookieParser());
+app.use(helmet());
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+  allowedHeaders: ["Content-Type", "Authorization"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  exposedHeaders: ["X-Auth-Token"],
+}));
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const fileDirectory = path.join(__dirname, 'uploads'); 
+app.use('/uploads', express.static(fileDirectory));
 
 cron.schedule("0 0 * * *", async () => {
   console.log("Running scheduled task to delete expired trashed files...");
@@ -29,6 +45,7 @@ app.get("/", (req, res) => {
 
 // middleware
 import error from "./middleware/error.js";
+import { fileURLToPath } from "url";
 app.use(error);
 
 app.listen(port, () => {

@@ -1,23 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 import { toast } from "react-toastify";
 import { Link } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { login } from "../../features/userSlice";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+  const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  useEffect(() => {
+   if(user){
+     navigate('/')
+   }
+  }, [user])
+  
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
-  const handleLogin = () => {
+  const dispatch = useDispatch();
+  const handleLogin = async () => {
     if (!email || !password) {
       toast.error("Please enter both email and password.");
       return;
     }
-    toast.success("Logged in successfully!");
+  
+    try {
+      const result = await dispatch(login({ email, password }));
+      if (result.payload?.success) {
+        toast.success(result.payload.message || "Logged in successfully!");
+      } else {
+        toast.error(result.payload?.message || "Login failed.");
+      }
+    } catch (error) {
+      toast.error(error.message || "An error occurred during login.");
+    }
   };
-
+  
   const handleGoogleSignIn = () => {
     toast.info("Google Sign-In clicked!");
   };
@@ -31,7 +53,9 @@ const Login = () => {
           <p className="opacity-75 mb-4">Please enter your details</p>
 
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-sm" htmlFor="email">Email</label>
+            <label className="font-bold text-sm" htmlFor="email">
+              Email
+            </label>
             <input
               type="email"
               id="email"
@@ -43,7 +67,9 @@ const Login = () => {
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="font-bold text-sm" htmlFor="password">Password</label>
+            <label className="font-bold text-sm" htmlFor="password">
+              Password
+            </label>
             <input
               type="password"
               id="password"

@@ -13,17 +13,26 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  LinearProgress,
+  CircularProgress,
 } from "@mui/material";
 import { Brightness4, Brightness7, CloudUpload } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { toast } from "react-toastify";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import { logout } from "../../features/userSlice";
+import { uploadFile } from "../../features/filesSlice";
 
 const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
+  const { loading } = useSelector((state) => state.auth); // Assume 'loading' is updated by uploadFile action
+  const [uploadProgress, setUploadProgress] = useState(0); // For progress bar
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -34,16 +43,46 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
     setMenuOpen(false);
   };
 
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    try {
+      const result = await dispatch(logout());
+      toast.success(result.payload.message);
+    } catch (error) {
+      toast.error(result.payload.message);
+    }
+  };
+
   const handleFileChange = (event) => {
     const file = event.target.files[0];
     setSelectedFile(file);
     setOpenDialog(true);
   };
 
-  const handleConfirmUpload = () => {
-    if (selectedFile) {
-      toast.success(`Uploading ${selectedFile.name}`);
+  const handleConfirmUpload = async () => {
+    const formData = new FormData();
+    formData.append("file", selectedFile);
+
+    try {
+      const result = await dispatch(
+        uploadFile(formData, {
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round(
+              (progressEvent.loaded / progressEvent.total) * 100
+            );
+            setUploadProgress(progress);
+          },
+        })
+      );
+
+      if (result.payload?.success) {
+        toast.success(result.payload.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
     }
+
+    setUploadProgress(0); // Reset progress
     setOpenDialog(false);
   };
 
@@ -75,11 +114,26 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
               color="secondary"
               startIcon={<CloudUpload />}
               component="label"
+              disabled={loading} // Disable button during upload
             >
               Upload
               <input type="file" hidden onChange={handleFileChange} />
             </Button>
           </Tooltip>
+
+          {/* Loader/Progress Bar */}
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <CircularProgress size={20} />
+              {uploadProgress > 0 && (
+                <LinearProgress
+                  variant="determinate"
+                  value={uploadProgress}
+                  style={{ width: "100px" }}
+                />
+              )}
+            </div>
+          )}
 
           <Tooltip title="User Profile">
             <IconButton onClick={handleMenuClick} color="inherit">
@@ -88,7 +142,6 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
           </Tooltip>
 
           <Menu
-        
             anchorEl={anchorEl}
             open={menuOpen}
             onClose={handleMenuClose}
@@ -97,19 +150,19 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
             }}
           >
             <Link to="/profile">
-            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
-              Profile
-            </MenuItem>
+              <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+                Profile
+              </MenuItem>
             </Link>
             <Link to="/packages">
-            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
-              Subscriptions
-            </MenuItem>
+              <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+                Subscriptions
+              </MenuItem>
             </Link>
             <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
               Settings
             </MenuItem>
-            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
+            <MenuItem onClick={handleLogout} sx={menuItemStyle}>
               Logout
             </MenuItem>
           </Menu>

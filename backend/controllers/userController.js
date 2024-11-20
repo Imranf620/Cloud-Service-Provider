@@ -66,6 +66,7 @@ export const register = catchAsyncError(async (req, res, next) => {
 
 export const login = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
+  
 
   if (!email || !password) {
     return apiResponse(
@@ -123,7 +124,7 @@ export const login = catchAsyncError(async (req, res, next) => {
     })
     .json({
       success: true,
-      message: "user retrieved successfully",
+      message: "Logged in successfully",
       data:user
     });
 });
@@ -187,4 +188,15 @@ export const updatePassword = catchAsyncError(async(req,res,next)=>{
 
 
     apiResponse(true, "Password updated successfully", null, 200, res);
+})
+
+export const fetchMyProfile= catchAsyncError(async(req,res,next)=>{
+   const id = req.user;
+   const user = await prisma.user.findUnique({
+       where:{id}
+   })
+
+   delete user.password;
+
+   apiResponse(true, `Welcome ${user.name}`, user, 200, res);
 })
