@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,19 +7,42 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role{
+enum Role {
   ADMIN
   USER
 }
 
-model User{
-  id String @default(uuid()) @db.Uuid()
-  name String
-  email String @unique
+model User {
+  id       String  @id @default(uuid())
+  name     String
+  email    String  @unique
   password String
-  image String?
-  role Role? 
+  image    String?
+  role     Role?
+  files    File[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-} 
+}
+
+model File {
+  id      String  @id @default(uuid())
+  name    String
+  size    Int
+  type    String
+  path    String
+  userId  String
+  user    User    @relation(fields: [userId], references: [id])
+  private Boolean
+  trash   Trash[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Trash {
+  id        String   @id @default(uuid())
+  fileId    String
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  deletedAt DateTime @default(now())
+}
