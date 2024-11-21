@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
 import { Box, Avatar, Button } from '@mui/material';
 import { PhotoCamera } from '@mui/icons-material';
+import { useSelector } from 'react-redux';
 
-const ProfileImage = () => {
+const ProfileImage = ({onImageChange}) => {
+  const {user} = useSelector(state => state.auth)
   const [image, setImage] = useState(null);
 
   const handleImageUpload = (event) => {
+
     const file = event.target.files[0];
-    if (file) {
-      setImage(URL.createObjectURL(file));
-    }
+    setImage(URL.createObjectURL(file))
+    onImageChange(file)
+
+  
   };
+  console.log(user)
 
   return (
     <Box textAlign="center" mb={3}>
       <Avatar
-        src={image}
+        src={image }
         alt="Profile Image"
         sx={{ width: 100, height: 100, margin: 'auto' }}
       />

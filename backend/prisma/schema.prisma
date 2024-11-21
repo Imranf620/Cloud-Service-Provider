@@ -45,4 +45,6 @@ model Trash {
   fileId    String
   file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
   deletedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

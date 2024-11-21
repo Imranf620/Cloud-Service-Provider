@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   AppBar,
   Toolbar,
@@ -19,20 +19,22 @@ import {
 import { Brightness4, Brightness7, CloudUpload } from "@mui/icons-material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { toast } from "react-toastify";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { logout } from "../../features/userSlice";
 import { uploadFile } from "../../features/filesSlice";
+import { reFetchContext } from "../../context/ReFetchContext";
 
 const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
-  const { loading } = useSelector((state) => state.auth); // Assume 'loading' is updated by uploadFile action
-  const [uploadProgress, setUploadProgress] = useState(0); // For progress bar
+  const { loading } = useSelector((state) => state.auth);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const dispatch = useDispatch();
-  const navigate = useNavigate();
+  const location = useLocation(); 
+  const {handleRefetch} = useContext(reFetchContext)
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -77,6 +79,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
 
       if (result.payload?.success) {
         toast.success(result.payload.message);
+        handleRefetch()
       }
     } catch (error) {
       toast.error(error.message);
@@ -101,6 +104,11 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
       backgroundColor: isDarkMode ? "#616161" : "#e0e0e0",
     },
   };
+
+  // Close the menu when the user navigates to a new route
+  React.useEffect(() => {
+    setMenuOpen(false); // Close menu on route change
+  }, [location]);
 
   return (
     <AppBar position="sticky" color="secondary">

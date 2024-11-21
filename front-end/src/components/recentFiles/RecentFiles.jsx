@@ -156,6 +156,12 @@ const RecentFiles = () => {
             label="New File Name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
+            sx={{
+              marginBottom: 2,
+              marginTop: 2,
+
+              
+            }}
           />
         </DialogContent>
         <DialogActions>

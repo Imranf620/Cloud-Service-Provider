@@ -52,6 +52,20 @@ export const logout = createAsyncThunk("/logout",async(_,{rejectWithValue})=>{
     
 })
 
+export const updateProfile = createAsyncThunk("/update/profile", async (data, { rejectWithValue }) => {
+    try {
+      const res = await axios.put(`${baseApi}/user/update`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  });
+  
 
 
 const initialState = {
@@ -131,6 +145,22 @@ const authSlice = createSlice({
             state.loading = false;
         }),
         builder.addCase(logout.rejected,(state,action)=>{
+            state.response = action.payload;
+            state.error = action.payload;
+            state.loading = false;
+        }),
+        builder.addCase(updateProfile.pending,(state,action)=>{
+            state.response = null;
+            state.error = null;
+            state.loading = true;
+        }),
+        builder.addCase(updateProfile.fulfilled,(state,action)=>{{
+            state.user = action.payload.data;
+            state.response = action.payload;
+            state.error = null;
+            state.loading = false;
+        }})
+        builder.addCase(updateProfile.rejected,(state,action)=>{
             state.response = action.payload;
             state.error = action.payload;
             state.loading = false;

@@ -11,19 +11,8 @@ router.get("/get/media", isAuthenticated,getVideoFiles)
 router.get("/get/images", isAuthenticated,getImageFiles)
 router.get("/get/documents", isAuthenticated,getDocumentFiles)
 router.get("/get/other", isAuthenticated,getOtherFiles)
-router.get("/get/other", isAuthenticated,getOtherFiles)
 router.get("/get/latest", isAuthenticated,getLatestFiles)
 router.put("/edit/name", isAuthenticated,editFileName)
 router.delete("/delete", isAuthenticated,deleteFile)
-
-
-
-
-
-
-
-
-
-
 
 export default router;

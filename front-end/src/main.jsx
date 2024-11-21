@@ -7,12 +7,15 @@ import "react-toastify/dist/ReactToastify.css";
 import { ThemeProvider } from "./context/ThemeContext.jsx";
 import store from "./store.js";
 import { Provider } from "react-redux";
+import ReFetchState from "./context/ReFetchContext.jsx";
 
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <ThemeProvider>
       <Provider store={store}>
+        <ReFetchState>
       <App />
+        </ReFetchState>
       </Provider>
     </ThemeProvider>
     <ToastContainer

@@ -1,15 +1,7 @@
-import React, { useState } from 'react';
-import { Box, TextField, Button } from '@mui/material';
+import React from 'react';
+import { Box, TextField } from '@mui/material';
 
-const UserDetails = () => {
-  const [username, setUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-
-  const handleUpdate = () => {
-    alert(`Updated details: \nUsername: ${username}\nEmail: ${email}`);
-  };
-
+const UserDetails = ({ username, email, setUsername, setEmail }) => {
   return (
     <Box>
       <TextField
@@ -28,18 +20,6 @@ const UserDetails = () => {
         onChange={(e) => setEmail(e.target.value)}
         sx={{ mb: 2 }}
       />
-      <TextField
-        fullWidth
-        label="Password"
-        variant="outlined"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        sx={{ mb: 2 }}
-      />
-      <Button variant="contained" color="primary" fullWidth onClick={handleUpdate}>
-        Update Details
-      </Button>
     </Box>
   );
 };

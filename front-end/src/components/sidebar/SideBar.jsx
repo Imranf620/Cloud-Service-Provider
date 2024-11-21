@@ -1,6 +1,7 @@
 import React from 'react';
 import { List, ListItem, ListItemText, Divider, ListItemIcon } from '@mui/material';
 import { Folder, Image, Description, Movie, FileCopy, Dashboard } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -15,6 +16,8 @@ const SideBar = ({handleToggle}) => {
     { path: '/dashboard/documents', label: 'Documents', icon: <Description style={{ color: 'white' }} /> },
     { path: '/dashboard/media', label: 'Media', icon: <Movie style={{ color: 'white' }} /> },
     { path: '/dashboard/other', label: 'Other', icon: <FileCopy style={{ color: 'white' }} /> },
+    { path: '/dashboard/bin/all', label: 'Trash', icon: <DeleteIcon style={{ color: 'white' }} /> },
+
   ];
 
   const getLinkClass = (path) => {

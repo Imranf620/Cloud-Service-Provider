@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import {
   Box,
@@ -11,41 +11,37 @@ import {
   Paper,
   Pagination,
   CircularProgress,
-  Dialog, DialogActions, DialogContent, DialogTitle, TextField, Button 
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Button,
 } from "@mui/material";
 import ArticleIcon from "@mui/icons-material/Article";
 import DropdownMenu from "../../components/dropdownMenu/DropdownMenu";
 import { useDispatch, useSelector } from "react-redux";
-import { editFileName, fetchFiles, deleteFile } from "../../features/filesSlice";  // Import the deleteFile action
 import { toast } from "react-toastify";
-import { reFetchContext } from "../../context/ReFetchContext";
+import { deleteTrash, fetchTrash, restoreFromBin } from "../../features/trashSlice";
 
-const Storage = () => {
+const Bin = () => {
   const { type } = useParams();
   const [allData, setAllData] = useState([]);
   const [filteredFiles, setFilteredFiles] = useState([]);
   const [sortBy, setSortBy] = useState("size");
   const [orderDirection, setOrderDirection] = useState("asc");
   const [page, setPage] = useState(1);
-  
-  const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameFileData, setRenameFileData] = useState(null);
-  const [newName, setNewName] = useState("");
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);  // State for delete confirmation dialog
-  const [fileToDelete, setFileToDelete] = useState(null);  // File to delete
-  const {refetch, handleRefetch} = useContext(reFetchContext)
-
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState(null);
 
   const filesPerPage = 10;
-  
+
   const { loading } = useSelector((state) => state.files);
   const dispatch = useDispatch();
 
-  // Fetch Files
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await dispatch(fetchFiles({ type, sortBy, orderDirection }));
+        const response = await dispatch(fetchTrash({ type, sortBy, orderDirection }));
         setAllData(response?.payload?.data || []);
         setFilteredFiles(response?.payload?.data || []);
       } catch (error) {
@@ -53,9 +49,8 @@ const Storage = () => {
       }
     };
     fetchData();
-  }, [type, sortBy, orderDirection, dispatch,refetch]);
+  }, [type, sortBy, orderDirection, dispatch]);
 
-  // Handle Sorting Changes
   const handleSortChange = (event) => {
     setSortBy(event.target.value);
   };
@@ -70,7 +65,6 @@ const Storage = () => {
 
   const paginatedFiles = filteredFiles.slice((page - 1) * filesPerPage, page * filesPerPage);
 
-  // Action Handlers
   const handleView = (file) => {
     const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
     window.open(fileUrl, "_blank");
@@ -87,88 +81,55 @@ const Storage = () => {
     toast.success(`${file.name} downloaded successfully`);
   };
 
-  const handleShare = (file) => {
-    const shareUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("File link copied to clipboard!");
-  };
-
-  const handleOpenRenameModal = (file) => {
-    setRenameFileData(file);
-    const nameWithoutExtension = file.name.substring(0, file.name.lastIndexOf('.')); // Extract file name without extension
-    const extension = file.name.substring(file.name.lastIndexOf('.')); // Extract file extension
-    setNewName(nameWithoutExtension); // Set the name for the modal to the name without the extension
-    setRenameModalOpen(true);
-  };
-  const handleCloseRenameModal = () => {
-    setRenameModalOpen(false);
-    setRenameFileData(null);
-    setNewName("");
-  };
-
-  const handleRenameFile = async () => {
-    if (!newName.trim()) {
-      toast.error("Name cannot be empty");
-      return;
-    }
   
-    // Ensure the extension is preserved
-    const fileExtension = renameFileData.name.substring(renameFileData.name.lastIndexOf('.'));
-    const newFileName = `${newName}${fileExtension}`; // Reattach the original file extension
-  
-    try {
-      const response = await dispatch(editFileName({ fileId: renameFileData.id, newName: newFileName }));
-      if (response.payload?.success) {
-        toast.success("File renamed successfully");
-        handleRefetch()
-        handleCloseRenameModal();
-
-      } else {
-        toast.error(response.payload.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to rename file");
-    }
-  };
 
   const handleDeleteFile = async () => {
     if (!fileToDelete) return;
     const fileId = fileToDelete.id;
-  
+
     try {
-      const response = await dispatch(deleteFile(fileId));
+      const response = await dispatch(deleteTrash(fileId));
       if (response.payload?.success) {
         toast.success("File deleted successfully");
         setDeleteModalOpen(false);
         setFileToDelete(null);
-        
-        // Filter out the deleted file from the filteredFiles array
         setFilteredFiles((prevFiles) => prevFiles.filter((file) => file.id !== fileId));
       } else {
         toast.error(response.payload.message);
+        console.log(response.payload);
       }
     } catch (error) {
       toast.error(error.message || "Failed to delete file");
     }
   };
-  
+
+  const handleRestoreFile = async (file) => {
+    try {
+        console.log(file)
+      const response = await dispatch(restoreFromBin(file.id));
+      if (response.payload?.success) {
+        toast.success("File restored successfully");
+        setFilteredFiles((prevFiles) => prevFiles.filter((f) => f.id !== file.id));
+      } else {
+        toast.error(response.payload.message);
+      }
+    } catch (error) {
+      toast.error(error.message || "Failed to restore file");
+    }
+  };
 
   const dropdownOptions = (file) => [
     { label: "View", onClick: () => handleView(file) },
     { label: "Download", onClick: () => handleDownload(file) },
-    { label: "Share", onClick: () => handleShare(file) },
-    { label: "Rename", onClick: () => handleOpenRenameModal(file) },
-    { label: "Delete", onClick: () => { setFileToDelete(file); setDeleteModalOpen(true); } }  // Add Delete option
+    { label: "Restore", onClick: () => handleRestoreFile(file) },
+    { label: "Delete", onClick: () => { setFileToDelete(file); setDeleteModalOpen(true); } },
   ];
 
   return (
     <Box sx={{ padding: 4 }}>
-      {/* Heading */}
       <Typography className="capitalize" variant="h4" component="h1" sx={{ marginBottom: 2 }}>
         {type}
       </Typography>
-
-      {/* Total Space */}
       <Paper sx={{ padding: 3, marginBottom: 4, boxShadow: 3 }}>
         <Typography variant="h6" sx={{ marginBottom: 1 }}>
           Total Space:
@@ -176,8 +137,6 @@ const Storage = () => {
             {allData.reduce((acc, file) => acc + file.size, 0) / 1e6} MB
           </Typography>
         </Typography>
-
-        {/* Sort By Selector */}
         <Grid container spacing={2} alignItems="center">
           <Grid item>
             <Typography variant="body1">Sort by:</Typography>
@@ -203,8 +162,6 @@ const Storage = () => {
           </Grid>
         </Grid>
       </Paper>
-
-      {/* Files Section */}
       <Typography variant="h6" sx={{ marginBottom: 2 }}>
         Files:
       </Typography>
@@ -249,17 +206,14 @@ const Storage = () => {
                   </div>
                   <Box>
                     <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                      {file.name}
+                      {file.file.name}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      {(file.size/1e6)} MB
+                      {(file.file.size / 1e6).toFixed(2)} MB
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                    {new Date(file.updatedAt).toLocaleTimeString()}, {new Date(file.updatedAt).toLocaleDateString()}
+                      {new Date(file.updatedAt).toLocaleTimeString()}, {new Date(file.updatedAt).toLocaleDateString()}
                     </Typography>
-                
-                    
-                    
                   </Box>
                 </Box>
                 <DropdownMenu options={dropdownOptions(file)} />
@@ -272,8 +226,6 @@ const Storage = () => {
           No files available.
         </Typography>
       )}
-
-      {/* Pagination */}
       <Box sx={{ display: "flex", justifyContent: "center", marginTop: 4 }}>
         <Pagination
           count={Math.ceil(filteredFiles.length / filesPerPage)}
@@ -282,36 +234,6 @@ const Storage = () => {
           color="primary"
         />
       </Box>
-
-      {/* Rename Modal */}
-      <Dialog open={renameModalOpen} onClose={handleCloseRenameModal}>
-        <DialogTitle>Rename File</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            label="New File Name"
-            sx={{
-              marginBottom: 2,
-              marginTop: 2,
-
-              
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRenameModal} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleRenameFile} color="primary">
-            Rename
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Modal */}
       <Dialog open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
         <DialogTitle>Delete File</DialogTitle>
         <DialogContent>
@@ -320,10 +242,10 @@ const Storage = () => {
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteModalOpen(false)} color="secondary">
+          <Button onClick={() => setDeleteModalOpen(false)} color="primary">
             Cancel
           </Button>
-          <Button onClick={handleDeleteFile} color="primary">
+          <Button onClick={handleDeleteFile} color="secondary">
             Delete
           </Button>
         </DialogActions>
@@ -332,4 +254,4 @@ const Storage = () => {
   );
 };
 
-export default Storage;
+export default Bin;

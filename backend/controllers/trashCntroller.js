@@ -1,6 +1,9 @@
+import { fileURLToPath } from "url";
 import catchAsyncError from "../middleware/catchAsyncErrors.js";
 import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
+import fs from 'fs';
+import path from 'path';
 
 export const moveToTrash = catchAsyncError(async (req, res, next) => {
   const { docId } = req.params;
@@ -55,16 +58,29 @@ export const moveToTrash = catchAsyncError(async (req, res, next) => {
 // Retrieve trashed files
 export const getTrashedFiles = catchAsyncError(async (req, res, next) => {
   const userId = req.user;
+  const { orderBy, orderDirection = "asc" } = req.query;
 
-  // Fetch trashed files and include related file details
+  const validOrderByFields = {
+    date: "createdAt",
+    name: "name",
+    size: "size",
+  };
+
+  const orderField = validOrderByFields[orderBy] || "createdAt";
+
   const trashedFiles = await prisma.trash.findMany({
     where: {
       file: {
-        userId, // Ensure this is used to fetch only the user's files
+        userId,
       },
     },
     include: {
-      file: true, // Include related file details
+      file: true,
+    },
+    orderBy: {
+      file: {
+        [orderField]: orderDirection.toLowerCase() === "desc" ? "desc" : "asc",
+      },
     },
   });
 
@@ -76,6 +92,7 @@ export const getTrashedFiles = catchAsyncError(async (req, res, next) => {
     res
   );
 });
+
 
 export const deleteExpiredTrashedFiles = catchAsyncError(
   async (req, res, next) => {
@@ -142,6 +159,7 @@ export const restoreFromTrash = catchAsyncError(async (req, res, next) => {
   );
 });
 
+
 export const deleteFileFromTrash = catchAsyncError(async (req, res, next) => {
   const { trashId } = req.params;
   const userId = req.user;
@@ -167,6 +185,28 @@ export const deleteFileFromTrash = catchAsyncError(async (req, res, next) => {
       res
     );
   }
+
+  const filePath = trashedEntry.file.path;
+
+  console.log("File Path:", filePath);
+
+  if (!filePath) {
+    return apiResponse(false, "File path not found", null, 400, res);
+  }
+
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+
+  const fullFilePath = path.join(__dirname, '..', filePath);
+
+  console.log("Final File Path:", fullFilePath);
+
+  fs.unlink(fullFilePath, (err) => {
+    if (err) {
+      console.error("Error deleting file:", err);
+      return apiResponse(false, "Failed to delete file from storage", null, 500, res);
+    }
+  });
 
   await prisma.trash.delete({
     where: {
