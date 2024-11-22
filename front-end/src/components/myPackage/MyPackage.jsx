@@ -14,18 +14,24 @@ import {
 } from '@mui/material';
 import { useTheme } from '../../context/ThemeContext';
 import SelectPackage from '../selectPackage/SelectPackage';
+import { useSelector } from 'react-redux';
 
 const MyPackage = () => {
   const { isDarkMode } = useTheme();
   const [isModalOpen, setModalOpen] = useState(false);
+  const { user } = useSelector((state) => state.auth);
+  console.log(user?.user.validDays)
 
+  // Selected package details
   const selectedPackage = {
-    days: 30,
-    bandwidth: 10,
-    storage: 100,
+    days: user?.user.validDays,
+    uploadSpeed: 10,
+    downloadSpeed: 10,
+    storage: user?.user.totalStorage,
     price: 80.0,
   };
 
+  // Styles
   const styles = {
     container: {
       padding: '20px',
@@ -66,6 +72,7 @@ const MyPackage = () => {
     },
   };
 
+  // Modal handlers
   const handleUpgradeClick = () => {
     setModalOpen(true);
   };
@@ -94,8 +101,12 @@ const MyPackage = () => {
               <TableCell>{selectedPackage.days} Days</TableCell>
             </TableRow>
             <TableRow>
-              <TableCell>Bandwidth</TableCell>
-              <TableCell>{selectedPackage.bandwidth} GB</TableCell>
+              <TableCell>Upload Speed</TableCell>
+              <TableCell>{selectedPackage.uploadSpeed} Mbps</TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell>Download Speed</TableCell>
+              <TableCell>{selectedPackage.downloadSpeed} Mbps</TableCell>
             </TableRow>
             <TableRow>
               <TableCell>Storage</TableCell>

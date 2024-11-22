@@ -9,14 +9,30 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
 
   const { customName, originalname, path: filePath, size, mimetype } = req.file;
   const userId = req.user;
-  
+
+  const user = await prisma.user.findFirst({
+    where: { id: userId },
+    include: {
+      files: true,
+    },
+  });
+  if (!user) {
+    return apiResponse(false, "User not found", null, 404, res);
+  }
+  const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
+  const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+  const availableStorageInBytes = totalStorageInBytes - totalFileSize;
+  if(size > availableStorageInBytes){
+    return apiResponse(false, "Not enough storage", null, 413, res);
+  }
+
 
   const file = await prisma.file.create({
     data: {
-      name: originalname, 
+      name: originalname,
       size: size,
       type: mimetype,
-      path: `uploads/${customName}`, 
+      path: `uploads/${customName}`,
       userId,
       private: true,
     },
@@ -27,18 +43,15 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
 
 export const getAllFiles = catchAsyncError(async (req, res, next) => {
   const { orderBy, orderDirection = "asc" } = req.query;
-  console.log("order by", orderBy, orderDirection)
+  console.log("order by", orderBy, orderDirection);
 
-
-
-  
   const validOrderByFields = {
     date: "createdAt",
     name: "name",
     size: "size",
   };
 
-  const orderField = validOrderByFields[orderBy] || "createdAt"; 
+  const orderField = validOrderByFields[orderBy] || "createdAt";
 
   const userId = req.user;
   const files = await prisma.file.findMany({
@@ -53,10 +66,15 @@ export const getAllFiles = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  const withoutTrash = files.filter(file => file.trash.length === 0);
-  
+  const withoutTrash = files.filter((file) => file.trash.length === 0);
 
-  return apiResponse(true, "Files retrieved successfully", withoutTrash, 200, res);
+  return apiResponse(
+    true,
+    "Files retrieved successfully",
+    withoutTrash,
+    200,
+    res
+  );
 });
 
 export const getVideoFiles = catchAsyncError(async (req, res, next) => {
@@ -82,7 +100,13 @@ export const getVideoFiles = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  return apiResponse(true, "Video files retrieved successfully", videos, 200, res);
+  return apiResponse(
+    true,
+    "Video files retrieved successfully",
+    videos,
+    200,
+    res
+  );
 });
 
 export const getImageFiles = catchAsyncError(async (req, res, next) => {
@@ -111,9 +135,15 @@ export const getImageFiles = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  const withoutTrash = images.filter(image => image.trash.length === 0);
+  const withoutTrash = images.filter((image) => image.trash.length === 0);
 
-  return apiResponse(true, "Image files retrieved successfully", withoutTrash, 200, res);
+  return apiResponse(
+    true,
+    "Image files retrieved successfully",
+    withoutTrash,
+    200,
+    res
+  );
 });
 
 export const getDocumentFiles = catchAsyncError(async (req, res, next) => {
@@ -146,18 +176,33 @@ export const getDocumentFiles = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  const withoutTrash = documents.filter(document => document.trash.length === 0);
+  const withoutTrash = documents.filter(
+    (document) => document.trash.length === 0
+  );
 
-  return apiResponse(true, "Document files retrieved successfully", withoutTrash, 200, res);
+  return apiResponse(
+    true,
+    "Document files retrieved successfully",
+    withoutTrash,
+    200,
+    res
+  );
 });
 
 export const getOtherFiles = catchAsyncError(async (req, res, next) => {
   const { orderBy, orderDirection = "asc" } = req.body;
   const userId = req.user;
   const excludedMimeTypes = [
-    "video/mp4", "video/mkv", "video/avi", // Video types
-    "image/jpeg", "image/png", "image/gif", "image/webp", // Image types
-    "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // Document types
+    "video/mp4",
+    "video/mkv",
+    "video/avi", // Video types
+    "image/jpeg",
+    "image/png",
+    "image/gif",
+    "image/webp", // Image types
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // Document types
   ];
 
   const validOrderByFields = {
@@ -181,91 +226,108 @@ export const getOtherFiles = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  const withoutTrash = others.filter(other => other.trash.length === 0);
+  const withoutTrash = others.filter((other) => other.trash.length === 0);
 
-  return apiResponse(true, "Other files retrieved successfully", withoutTrash, 200, res);
+  return apiResponse(
+    true,
+    "Other files retrieved successfully",
+    withoutTrash,
+    200,
+    res
+  );
 });
 
-
-
-export const getLatestFiles = catchAsyncError(async(req,res,next)=>{
+export const getLatestFiles = catchAsyncError(async (req, res, next) => {
   const userId = req.user;
   const latestFiles = await prisma.file.findMany({
-    where:{
-      userId
+    where: {
+      userId,
     },
-    orderBy:{
+    orderBy: {
       createdAt: "desc",
     },
-    take:10,
-    include:{
-          trash:true,
-    }
-  })
+    take: 10,
+    include: {
+      trash: true,
+    },
+  });
 
+  const withoutTrash = latestFiles.filter((file) => file.trash.length === 0);
 
+  return apiResponse(
+    true,
+    "Latest files retrieved successfully",
+    withoutTrash,
+    200,
+    res
+  );
+});
 
-  const withoutTrash = latestFiles.filter(file => file.trash.length === 0);
-
-  return apiResponse(true, "Latest files retrieved successfully", withoutTrash, 200, res);
-})
-
-
-export const editFileName = catchAsyncError(async(req,res,next)=>{
-  const {fileId, newName} = req.body;
+export const editFileName = catchAsyncError(async (req, res, next) => {
+  const { fileId, newName } = req.body;
   const userId = req.user;
   if (!fileId || !newName) {
-    return apiResponse(false, "File ID and new name are required", null, 400, res);
+    return apiResponse(
+      false,
+      "File ID and new name are required",
+      null,
+      400,
+      res
+    );
   }
 
   const file = await prisma.file.findFirst({
-    where:{
-      id:fileId,
-      userId
-    }
-  })
+    where: {
+      id: fileId,
+      userId,
+    },
+  });
 
-  if(!file){
+  if (!file) {
     return apiResponse(false, "File not found", null, 404, res);
   }
 
   const updatedFile = await prisma.file.update({
-    where:{
-      id:fileId
+    where: {
+      id: fileId,
     },
-    data:{
-      name:newName
-    }
-  })
+    data: {
+      name: newName,
+    },
+  });
 
-  return apiResponse(true, "File name updated successfully", updatedFile, 200, res);
-})
+  return apiResponse(
+    true,
+    "File name updated successfully",
+    updatedFile,
+    200,
+    res
+  );
+});
 
-
-export const deleteFile= catchAsyncError(async(req,res,next)=>{
-
-  const {fileId} = req.query;
+export const deleteFile = catchAsyncError(async (req, res, next) => {
+  const { fileId } = req.query;
   const userId = req.user;
   if (!fileId) {
     return apiResponse(false, "File ID is required", null, 400, res);
   }
 
   const file = await prisma.file.findFirst({
-    where:{
-      id:fileId,
-      userId
-    }
-  })
+    where: {
+      id: fileId,
+      userId,
+    },
+  });
 
-  if(!file){
+  if (!file) {
     return apiResponse(false, "File not found", null, 404, res);
   }
 
   await prisma.file.delete({
-    where:{
-      id:fileId
-    }
-  })
+    where: {
+      id: fileId,
+    },
+  });
 
   return apiResponse(true, "File deleted successfully", null, 200, res);
-})
+});

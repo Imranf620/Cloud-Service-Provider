@@ -33,6 +33,7 @@ export const fetchMyProfile = createAsyncThunk("/fetch/my-profile",
             const res = await axios.get(`${baseApi}/user/me`, {
                 withCredentials: true, 
             })
+            console.log(res.data)
             return res.data;
         } catch (error) {
             return rejectWithValue(error.response.data);

@@ -9,7 +9,7 @@ const CircularProgressWithLabel = (props) => {
     <Gauge
     cx={100}
     cornerRadius={40}
-    value={75}
+    value={props?.value}
     
     startAngle={-160}
     endAngle={160}
@@ -27,7 +27,7 @@ const CircularProgressWithLabel = (props) => {
     }}
   
     text={
-       ({ value, valueMax }) => `${value}% 
+       ({ value, valueMax }) => `${props?.value}% 
         space used `
     }
 

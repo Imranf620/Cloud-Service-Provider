@@ -80,6 +80,8 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
       if (result.payload?.success) {
         toast.success(result.payload.message);
         handleRefetch()
+      }else{
+        toast.error(result.payload.message);
       }
     } catch (error) {
       toast.error(error.message);

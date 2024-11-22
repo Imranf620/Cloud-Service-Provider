@@ -237,14 +237,47 @@ export const updatePassword = catchAsyncError(async(req,res,next)=>{
     apiResponse(true, "Password updated successfully", null, 200, res);
 })
 
-export const fetchMyProfile= catchAsyncError(async(req,res,next)=>{
-   const id = req.user;
-   
-   const user = await prisma.user.findUnique({
-       where:{id}
-   })
+export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
+  const id = req.user;
 
-   delete user.password;
+  const user = await prisma.user.findUnique({
+    where: { id },
+    include: {
+      files: true
+    }
+  });
 
-   apiResponse(true, `Welcome ${user.name}`, user, 200, res);
-})
+  if (!user) {
+    return next(new ErrorResponse('User not found', 404));
+  }
+
+  const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
+  const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+
+const availableStorageInBytes = totalStorageInBytes > 0 ? totalStorageInBytes - totalFileSize : 100;
+const percentageUsed = totalStorageInBytes > 0 ? (totalFileSize / totalStorageInBytes) * 100 : 100;
+
+  const currentDate = new Date();
+  const subscribedAt = new Date(user.subscribedAt);
+  const validTillFromSubsAt = user.validDays;
+
+  subscribedAt.setDate(subscribedAt.getDate() + validTillFromSubsAt);
+
+  const remainingDays = Math.max(Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)), 0) - 1;
+
+  delete user.password;
+  
+
+  const responseData = {
+    user,
+    totalFileSize,
+    availableStorageInBytes,
+    remainingDays,
+    totalStorageInBytes,
+    percentageUsed:percentageUsed.toFixed(2),
+    downloadSpeed: user.downloadSpeed, 
+    uploadSpeed: user.uploadSpeed, 
+  };
+
+  apiResponse(true, `Welcome ${user.name}`, responseData, 200, res);
+});

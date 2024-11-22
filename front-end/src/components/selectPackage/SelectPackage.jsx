@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -9,51 +9,57 @@ import {
   FormControl,
   Modal,
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 const stripePromise = loadStripe('pk_test_51PgwQeRsPs7LocjUEplV8ZtqASWq9qNoAYtmFCCwyicLgTXcYS6V6yVRXRyZAPvg9zBL5yx6HHuUQUorkM05go1v0021YtXR4L');
 
 const SelectPackage = ({ upgrade = false, onCancel }) => {
-  const { palette } = useTheme();
   const [days, setDays] = useState(30);
-  const [bandwidth, setBandwidth] = useState(10);
+  const [uploadSpeed, setUploadSpeed] = useState(10);
+  const [downloadSpeed, setDownloadSpeed] = useState(10);
   const [storage, setStorage] = useState(100);
   const [price, setPrice] = useState(0);
   const [openModal, setOpenModal] = useState(false);
 
   const availableDays = [7, 14, 30, 60, 90];
-  const availableBandwidth = [5, 10, 20, 50, 100];
+  const availableSpeeds = [10, 50, 100, 200, 500];
   const availableStorage = [50, 100, 200, 500, 1000];
 
   const pricing = {
     perDay: 2,
-    perGbBandwidth: 1,
+    perMbps: 0.75,
     perGbStorage: 0.5,
   };
 
+  // Function to calculate the total price
   const calculatePrice = () => {
     const totalPrice =
       days * pricing.perDay +
-      bandwidth * pricing.perGbBandwidth +
+      (uploadSpeed + downloadSpeed) * pricing.perMbps +
       storage * pricing.perGbStorage;
     setPrice(totalPrice);
   };
 
+  // Ensure the price is calculated on component mount
+  useEffect(() => {
+    calculatePrice();
+  }, [days, uploadSpeed, downloadSpeed, storage]);
+
   const handleDaysChange = (event) => {
     setDays(event.target.value);
-    calculatePrice();
   };
 
-  const handleBandwidthChange = (event) => {
-    setBandwidth(event.target.value);
-    calculatePrice();
+  const handleUploadSpeedChange = (event) => {
+    setUploadSpeed(event.target.value);
+  };
+
+  const handleDownloadSpeedChange = (event) => {
+    setDownloadSpeed(event.target.value);
   };
 
   const handleStorageChange = (event) => {
     setStorage(event.target.value);
-    calculatePrice();
   };
 
   const handleSubscribeClick = () => {
@@ -61,20 +67,13 @@ const SelectPackage = ({ upgrade = false, onCancel }) => {
   };
 
   return (
-    <div
-      style={{
-        padding: '20px',
-        backgroundColor: palette.background.paper,
-        borderRadius: '10px',
-        boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.1)',
-      }}
-    >
-      <Typography variant="h4" gutterBottom color={palette.text.primary}>
+    <div className="p-6 bg-white rounded-lg shadow-lg">
+      <Typography variant="h4" gutterBottom className="text-gray-900">
         Choose Your Package
       </Typography>
 
       <Box mb={3}>
-        <Typography variant="h6" color={palette.text.secondary}>
+        <Typography variant="h6" className="text-gray-700">
           Select Days:
         </Typography>
         <FormControl fullWidth variant="outlined">
@@ -90,15 +89,15 @@ const SelectPackage = ({ upgrade = false, onCancel }) => {
       </Box>
 
       <Box mb={3}>
-        <Typography variant="h6" color={palette.text.secondary}>
-          Select Bandwidth (GB):
+        <Typography variant="h6" className="text-gray-700">
+          Select Upload Speed (Mbps):
         </Typography>
         <FormControl fullWidth variant="outlined">
-          <InputLabel>Select Bandwidth</InputLabel>
-          <Select value={bandwidth} onChange={handleBandwidthChange} label="Select Bandwidth">
-            {availableBandwidth.map((band) => (
-              <MenuItem key={band} value={band}>
-                {band} GB
+          <InputLabel>Select Upload Speed</InputLabel>
+          <Select value={uploadSpeed} onChange={handleUploadSpeedChange} label="Select Upload Speed">
+            {availableSpeeds.map((speed) => (
+              <MenuItem key={speed} value={speed}>
+                {speed} Mbps
               </MenuItem>
             ))}
           </Select>
@@ -106,7 +105,23 @@ const SelectPackage = ({ upgrade = false, onCancel }) => {
       </Box>
 
       <Box mb={3}>
-        <Typography variant="h6" color={palette.text.secondary}>
+        <Typography variant="h6" className="text-gray-700">
+          Select Download Speed (Mbps):
+        </Typography>
+        <FormControl fullWidth variant="outlined">
+          <InputLabel>Select Download Speed</InputLabel>
+          <Select value={downloadSpeed} onChange={handleDownloadSpeedChange} label="Select Download Speed">
+            {availableSpeeds.map((speed) => (
+              <MenuItem key={speed} value={speed}>
+                {speed} Mbps
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Box>
+
+      <Box mb={3}>
+        <Typography variant="h6" className="text-gray-700">
           Select Storage (GB):
         </Typography>
         <FormControl fullWidth variant="outlined">
@@ -122,34 +137,26 @@ const SelectPackage = ({ upgrade = false, onCancel }) => {
       </Box>
 
       <Box mb={3}>
-        <Typography variant="h5" color={palette.text.primary}>
+        <Typography variant="h5" className="text-gray-900">
           Total Price: ${price.toFixed(2)}
         </Typography>
       </Box>
 
       <Button
         variant="contained"
-        color="secondary"
         fullWidth
+        color='secondary'
         onClick={handleSubscribeClick}
-        sx={{ padding: '12px', fontWeight: 'bold', borderRadius: '8px' }}
+        className="py-3 font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-700"
       >
         Subscribe Now
       </Button>
 
       <Modal open={openModal} onClose={() => setOpenModal(false)}>
         <Box
-          sx={{
-            width: 400,
-            padding: 4,
-            backgroundColor: 'white',
-            borderRadius: '10px',
-            boxShadow: 3,
-            margin: 'auto',
-            marginTop: '10%',
-          }}
+          className="w-96 p-6 bg-white rounded-lg shadow-xl mx-auto mt-32"
         >
-          <Typography variant="h5" gutterBottom>
+          <Typography variant="h5" gutterBottom className="text-gray-900">
             Enter Payment Details
           </Typography>
 
@@ -189,17 +196,16 @@ const StripePaymentForm = ({ price, setOpenModal }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <CardElement />
-      <Typography variant="h6" color="primary" mt={2}>
+      <CardElement className="p-2 border rounded-md" />
+      <Typography variant="h6" className="text-blue-600 mt-4">
         Total: ${price.toFixed(2)}
       </Typography>
       <Button
         variant="contained"
-        color="primary"
         type="submit"
         disabled={!stripe}
         fullWidth
-        sx={{ marginTop: '16px' }}
+        className="mt-4 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700"
       >
         Pay Now
       </Button>
