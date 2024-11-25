@@ -243,7 +243,8 @@ export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
   const user = await prisma.user.findUnique({
     where: { id },
     include: {
-      files: true
+      files: true,
+      payments:true
     }
   });
 
@@ -263,7 +264,7 @@ const percentageUsed = totalStorageInBytes > 0 ? (totalFileSize / totalStorageIn
 
   subscribedAt.setDate(subscribedAt.getDate() + validTillFromSubsAt);
 
-  const remainingDays = Math.max(Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)), 0) - 1;
+  const remainingDays = Math.max(Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)), 0) ;
 
   delete user.password;
   

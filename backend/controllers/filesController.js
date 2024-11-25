@@ -1,7 +1,49 @@
 import catchAsyncError from "../middleware/catchAsyncErrors.js";
 import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
+import ThrottleStream from 'stream-throttle';
+import fs from "fs"
 
+// export const uploadFile = catchAsyncError(async (req, res, next) => {
+//   if (!req.file) {
+//     return apiResponse(false, "No file uploaded", null, 400, res);
+//   }
+
+//   const { customName, originalname, path: filePath, size, mimetype } = req.file;
+//   const userId = req.user;
+
+//   const user = await prisma.user.findFirst({
+//     where: { id: userId },
+//     include: {
+//       files: true,
+//     },
+//   });
+//   if (!user) {
+//     return apiResponse(false, "User not found", null, 404, res);
+//   }
+//   const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
+//   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+//   const availableStorageInBytes = totalStorageInBytes - totalFileSize;
+//   if(size > availableStorageInBytes){
+//     return apiResponse(false, "Not enough storage", null, 413, res);
+//   }
+
+  
+
+
+//   const file = await prisma.file.create({
+//     data: {
+//       name: originalname,
+//       size: size,
+//       type: mimetype,
+//       path: `uploads/${customName}`,
+//       userId,
+//       private: true,
+//     },
+//   });
+
+//   return apiResponse(true, "File uploaded successfully", file, 200, res);
+// });
 export const uploadFile = catchAsyncError(async (req, res, next) => {
   if (!req.file) {
     return apiResponse(false, "No file uploaded", null, 400, res);
@@ -16,31 +58,41 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
       files: true,
     },
   });
+
   if (!user) {
     return apiResponse(false, "User not found", null, 404, res);
   }
+
   const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
   const availableStorageInBytes = totalStorageInBytes - totalFileSize;
-  if(size > availableStorageInBytes){
+
+  if (size > availableStorageInBytes) {
     return apiResponse(false, "Not enough storage", null, 413, res);
   }
 
+  const uploadSpeed = 5000; // 50KB per second
+  console.log("Uploading")
 
-  const file = await prisma.file.create({
-    data: {
-      name: originalname,
-      size: size,
-      type: mimetype,
-      path: `uploads/${customName}`,
-      userId,
-      private: true,
-    },
+  const fileStream = fs.createReadStream(filePath);
+  const throttledStream = new ThrottleStream.Throttle({ rate: uploadSpeed });
+
+  // Piping the throttled stream to a writable location (e.g., file, S3, etc.)
+  fileStream.pipe(throttledStream).on('end', async () => {
+    const file = await prisma.file.create({
+      data: {
+        name: originalname,
+        size: size,
+        type: mimetype,
+        path: `uploads/${customName}`,
+        userId,
+        private: true,
+      },
+    });
+
+    return apiResponse(true, "File uploaded successfully", file, 200, res);
   });
-
-  return apiResponse(true, "File uploaded successfully", file, 200, res);
 });
-
 export const getAllFiles = catchAsyncError(async (req, res, next) => {
   const { orderBy, orderDirection = "asc" } = req.query;
   console.log("order by", orderBy, orderDirection);

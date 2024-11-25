@@ -20,15 +20,15 @@ const MyPackage = () => {
   const { isDarkMode } = useTheme();
   const [isModalOpen, setModalOpen] = useState(false);
   const { user } = useSelector((state) => state.auth);
-  console.log(user?.user.validDays)
+  console.log(user?.user)
 
   // Selected package details
   const selectedPackage = {
     days: user?.user.validDays,
-    uploadSpeed: 10,
-    downloadSpeed: 10,
+    uploadSpeed: user?.user.uploadSpeed,
+    downloadSpeed: user?.user.downloadSpeed,
     storage: user?.user.totalStorage,
-    price: 80.0,
+    price: user?.user.payments.length===1 ?  80.0 : 0.00,
   };
 
   // Styles
@@ -114,7 +114,7 @@ const MyPackage = () => {
             </TableRow>
             <TableRow>
               <TableCell>Total Price</TableCell>
-              <TableCell>${selectedPackage.price.toFixed(2)}</TableCell>
+              <TableCell>${selectedPackage.price}</TableCell>
             </TableRow>
           </TableBody>
         </Table>

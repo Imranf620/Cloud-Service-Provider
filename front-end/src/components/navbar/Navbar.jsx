@@ -21,7 +21,7 @@ import MenuIcon from "@mui/icons-material/Menu";
 import { toast } from "react-toastify";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
-import { logout } from "../../features/userSlice";
+import { fetchMyProfile, logout } from "../../features/userSlice";
 import { uploadFile } from "../../features/filesSlice";
 import { reFetchContext } from "../../context/ReFetchContext";
 
@@ -80,6 +80,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
       if (result.payload?.success) {
         toast.success(result.payload.message);
         handleRefetch()
+        dispatch(fetchMyProfile())
       }else{
         toast.error(result.payload.message);
       }

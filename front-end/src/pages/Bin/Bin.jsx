@@ -22,6 +22,7 @@ import DropdownMenu from "../../components/dropdownMenu/DropdownMenu";
 import { useDispatch, useSelector } from "react-redux";
 import { toast } from "react-toastify";
 import { deleteTrash, fetchTrash, restoreFromBin } from "../../features/trashSlice";
+import { fetchMyProfile } from "../../features/userSlice";
 
 const Bin = () => {
   const { type } = useParams();
@@ -94,6 +95,8 @@ const Bin = () => {
         setDeleteModalOpen(false);
         setFileToDelete(null);
         setFilteredFiles((prevFiles) => prevFiles.filter((file) => file.id !== fileId));
+        dispatch(fetchMyProfile())
+
       } else {
         toast.error(response.payload.message);
         console.log(response.payload);
@@ -134,7 +137,8 @@ const Bin = () => {
         <Typography variant="h6" sx={{ marginBottom: 1 }}>
           Total Space:
           <Typography variant="body1" component="b" sx={{ marginLeft: 1 }}>
-            {allData.reduce((acc, file) => acc + file.size, 0) / 1e6} MB
+            {allData.reduce((acc, file) => acc + file.file.size, 0) / 1e6} MB
+           
           </Typography>
         </Typography>
         <Grid container spacing={2} alignItems="center">

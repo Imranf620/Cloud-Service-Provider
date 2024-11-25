@@ -24,7 +24,7 @@ model User {
   uploadSpeed   Float       @default(10)
   downloadSpeed Float       @default(10)
 
-   payments      Payment[] 
+  payments      Payment[] 
 
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
