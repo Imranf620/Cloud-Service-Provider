@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
 import ArticleIcon from "@mui/icons-material/Article";
-import DropdownMenu from "../dropdownMenu/DropdownMenu"; 
+import DropdownMenu from "../dropdownMenu/DropdownMenu";
 import { useTheme } from "../../context/ThemeContext";
 import { useDispatch } from "react-redux";
-import { getLatestFiles, deleteFile, editFileName } from "../../features/filesSlice";
+import { getLatestFiles, deleteFile, editFileName, shareFile } from "../../features/filesSlice";
 import { toast } from "react-toastify";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button ,TextField} from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
 
 const RecentFiles = () => {
   const [recentFiles, setRecentFiles] = useState([]);
@@ -15,14 +15,21 @@ const RecentFiles = () => {
   const [newName, setNewName] = useState("");
   const [selectedFile, setSelectedFile] = useState(null);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareOption, setShareOption] = useState("public");
+  const [emailListArray, setEmailListArray] = useState([""]);
 
   useEffect(() => {
     const fetchLatestFiles = async () => {
       try {
-        const files = await dispatch(getLatestFiles());
-        setRecentFiles(files.payload.data);
+        const response = await dispatch(getLatestFiles());
+        if (response?.payload?.data) {
+          setRecentFiles(response.payload.data);
+        } else {
+          toast.error("No files found.");
+        }
       } catch (error) {
-        toast.error("Failed to fetch files");
+        toast.error("Failed to fetch files.");
       }
     };
     fetchLatestFiles();
@@ -73,11 +80,13 @@ const RecentFiles = () => {
 
   const confirmDelete = async () => {
     try {
-      console.log(selectedFile.id)
-    const result  =   await dispatch(deleteFile(selectedFile.id));
-    console.log(result)
-      setRecentFiles((prevFiles) => prevFiles.filter((f) => f.id !== selectedFile.id));
-      result.payload.success===true?toast.success(`${selectedFile.name} deleted successfully`):toast.error("Error deleting file")
+      const result = await dispatch(deleteFile(selectedFile.id));
+      if (result?.payload?.success) {
+        setRecentFiles((prevFiles) => prevFiles.filter((f) => f.id !== selectedFile.id));
+        toast.success(`${selectedFile.name} deleted successfully`);
+      } else {
+        toast.error("Error deleting file");
+      }
     } catch (error) {
       toast.error("Failed to delete file");
     } finally {
@@ -85,38 +94,98 @@ const RecentFiles = () => {
     }
   };
 
-  const handleShare = (file) => {
-    const shareUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("File link copied to clipboard!");
-  };
-
-  const handleRename = (file) => {
+  const handleShare = async (file) => {
     setSelectedFile(file);
-    setNewName(file.name);
-    setRenameModalOpen(true);
-  };
-
-  const handleRenameFile = async () => {
-    if (!newName) return;
-    try {
-      const response = await dispatch(editFileName({ fileId: selectedFile.id, newName }));
-      if (response.payload?.success) {
-        toast.success("File renamed successfully");
-        setRecentFiles((prevFiles) =>
-          prevFiles.map((file) =>
-            file.id === selectedFile.id ? { ...file, name: newName } : file
-          )
-        );
-      } else {
-        toast.error(response.payload.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to rename file");
-    } finally {
-      setRenameModalOpen(false);
+    setShareModalOpen(true);
+    if (file.fileShares && file.fileShares.length > 0) {
+      setEmailListArray(file.fileShares.map((share) => share.email));
+    } else {
+      setEmailListArray([""]);
     }
   };
+
+ const handleShareFile = async () => {
+  const validEmails = emailListArray.filter((email) => validateEmail(email.trim()));
+
+  if (shareOption === "shared" && validEmails.length === 0) {
+    toast.error("Please enter at least one valid email.");
+    return;
+  }
+
+  const shareData = {
+    fileId: selectedFile.id,
+    visibility:
+      shareOption === "public"
+        ? "PUBLIC"
+        : shareOption === "shared"
+        ? "SHARED"
+        : "PRIVATE", // New case for private visibility
+    emails: shareOption === "shared" ? validEmails : [],
+  };
+
+  try {
+    const result = await dispatch(shareFile(shareData));
+    if (result?.payload?.success) {
+      toast.success(
+        shareOption === "public"
+          ? "File shared publicly!"
+          : shareOption === "shared"
+          ? "File shared with specific users!"
+          : "File set to private!"
+      );
+    } else {
+      toast.error("Failed to share file");
+    }
+  } catch (error) {
+    toast.error("Failed to share file");
+  } finally {
+    setShareModalOpen(false);
+  }
+};
+  
+
+const handleRename = (file) => {
+  const lastDotIndex = file.name.lastIndexOf(".");
+  const baseName = file.name.substring(0, lastDotIndex);
+  const extension = file.name.substring(lastDotIndex);
+
+  setSelectedFile({ ...file, extension }); // Store extension separately
+  setNewName(baseName); // Set base name as editable value
+  setRenameModalOpen(true);
+};
+
+
+const handleRenameFile = async () => {
+  if (!newName.trim()) {
+    toast.error("File name cannot be empty.");
+    return;
+  }
+
+  const updatedName = `${newName.trim()}${selectedFile.extension}`; // Append the preserved extension
+  if (updatedName === selectedFile.name) {
+    toast.info("File name is unchanged.");
+    setRenameModalOpen(false);
+    return;
+  }
+
+  try {
+    const response = await dispatch(editFileName({ fileId: selectedFile.id, newName: updatedName }));
+    if (response?.payload?.success) {
+      toast.success("File renamed successfully");
+      setRecentFiles((prevFiles) =>
+        prevFiles.map((file) =>
+          file.id === selectedFile.id ? { ...file, name: updatedName } : file
+        )
+      );
+    } else {
+      toast.error(response?.payload?.message || "Failed to rename file");
+    }
+  } catch (error) {
+    toast.error(error.message || "Failed to rename file");
+  } finally {
+    setRenameModalOpen(false);
+  }
+};
 
   const dropdownOptions = (file) => [
     { label: "View", onClick: () => handleOptionClick("View", file) },
@@ -125,6 +194,18 @@ const RecentFiles = () => {
     { label: "Share", onClick: () => handleOptionClick("Share", file) },
     { label: "Rename", onClick: () => handleOptionClick("Rename", file) },
   ];
+
+  const handleAddEmail = () => {
+    setEmailListArray([...emailListArray, ""]);
+  };
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+  const handleRemoveEmail = (index) => {
+    const newEmailList = emailListArray.filter((_, i) => i !== index);
+    setEmailListArray(newEmailList);
+  };
 
   return (
     <div className={`p-6 ${isDarkMode ? "bg-[#272727]" : "bg-gray-50"} rounded-lg shadow-md`}>
@@ -146,7 +227,7 @@ const RecentFiles = () => {
         ))}
       </div>
 
-      {/* Rename File Modal */}
+      {/* Rename File Dialog */}
       <Dialog open={renameModalOpen} onClose={() => setRenameModalOpen(false)}>
         <DialogTitle>Rename File</DialogTitle>
         <DialogContent>
@@ -156,12 +237,7 @@ const RecentFiles = () => {
             label="New File Name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            sx={{
-              marginBottom: 2,
-              marginTop: 2,
-
-              
-            }}
+            sx={{ marginBottom: 2, marginTop: 2 }}
           />
         </DialogContent>
         <DialogActions>
@@ -189,6 +265,70 @@ const RecentFiles = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
+  <DialogTitle>Share File</DialogTitle>
+  <DialogContent>
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Visibility</label>
+        <select
+          value={shareOption}
+          onChange={(e) => setShareOption(e.target.value)}
+          className={`w-full px-3 py-2 border outline-none rounded-md ${isDarkMode ? 'bg-[#333] text-white' : 'bg-white text-black'}`}
+        >
+          <option value="public">Public</option>
+          <option value="shared">Shared with Specific Users</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      {shareOption === "shared" && (
+        <div>
+          <label className="text-sm font-medium">Emails</label>
+          {emailListArray.map((email, index) => (
+            <div key={index} className="flex gap-2 py-2 items-center">
+              <TextField
+                label="Email"
+                variant="outlined"
+                size="small"
+                value={email}
+                onChange={(e) => {
+                  const newEmails = [...emailListArray];
+                  newEmails[index] = e.target.value;
+                  setEmailListArray(newEmails);
+                }}
+                sx={{ backgroundColor: isDarkMode ? '#444' : '#fff' }}
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveEmail(index)}
+                className="text-red-500"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={handleAddEmail}
+            className="text-blue-500"
+          >
+            Add Email
+          </button>
+        </div>
+      )}
+    </div>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setShareModalOpen(false)} color="secondary">
+      Cancel
+    </Button>
+    <Button onClick={handleShareFile} color="primary">
+      Share
+    </Button>
+  </DialogActions>
+</Dialog>
+
     </div>
   );
 };

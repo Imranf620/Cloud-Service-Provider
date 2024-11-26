@@ -16,12 +16,15 @@ import {
 import ArticleIcon from "@mui/icons-material/Article";
 import DropdownMenu from "../../components/dropdownMenu/DropdownMenu";
 import { useDispatch, useSelector } from "react-redux";
-import { editFileName, fetchFiles, deleteFile } from "../../features/filesSlice";  // Import the deleteFile action
+import { editFileName, fetchFiles, deleteFile ,shareFile} from "../../features/filesSlice";  // Import the deleteFile action
 import { toast } from "react-toastify";
 import { reFetchContext } from "../../context/ReFetchContext";
+import { useTheme } from "../../context/ThemeContext";
 
 const Storage = () => {
   const { type } = useParams();
+  const { isDarkMode } = useTheme();
+
   const [allData, setAllData] = useState([]);
   const [filteredFiles, setFilteredFiles] = useState([]);
   const [sortBy, setSortBy] = useState("size");
@@ -34,6 +37,11 @@ const Storage = () => {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);  // State for delete confirmation dialog
   const [fileToDelete, setFileToDelete] = useState(null);  // File to delete
   const {refetch, handleRefetch} = useContext(reFetchContext)
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [shareOption, setShareOption] = useState("public");
+  const [emailListArray, setEmailListArray] = useState([""]);
+  const [selectedFile, setSelectedFile] = useState(null);
+
 
 
   const filesPerPage = 10;
@@ -87,11 +95,61 @@ const Storage = () => {
     toast.success(`${file.name} downloaded successfully`);
   };
 
-  const handleShare = (file) => {
-    const shareUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("File link copied to clipboard!");
+  // const handleShare = (file) => {
+  //   const shareUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
+  //   navigator.clipboard.writeText(shareUrl);
+  //   toast.success("File link copied to clipboard!");
+  // };
+
+  const handleShare = async (file) => {
+    setSelectedFile(file);
+    setShareModalOpen(true);
+    if (file.fileShares && file.fileShares.length > 0) {
+      setEmailListArray(file.fileShares.map((share) => share.email));
+    } else {
+      setEmailListArray([""]);
+    }
   };
+
+  const handleShareFile = async () => {
+    const validEmails = emailListArray.filter((email) => validateEmail(email.trim()));
+  
+    if (shareOption === "shared" && validEmails.length === 0) {
+      toast.error("Please enter at least one valid email.");
+      return;
+    }
+  
+    const shareData = {
+      fileId: selectedFile.id,
+      visibility:
+        shareOption === "public"
+          ? "PUBLIC"
+          : shareOption === "shared"
+          ? "SHARED"
+          : "PRIVATE", // New case for private visibility
+      emails: shareOption === "shared" ? validEmails : [],
+    };
+  
+    try {
+      const result = await dispatch(shareFile(shareData));
+      if (result?.payload?.success) {
+        toast.success(
+          shareOption === "public"
+            ? "File shared publicly!"
+            : shareOption === "shared"
+            ? "File shared with specific users!"
+            : "File set to private!"
+        );
+      } else {
+        toast.error("Failed to share file");
+      }
+    } catch (error) {
+      toast.error("Failed to share file");
+    } finally {
+      setShareModalOpen(false);
+    }
+  };
+    
 
   const handleOpenRenameModal = (file) => {
     setRenameFileData(file);
@@ -160,6 +218,20 @@ const Storage = () => {
     { label: "Rename", onClick: () => handleOpenRenameModal(file) },
     { label: "Delete", onClick: () => { setFileToDelete(file); setDeleteModalOpen(true); } }  // Add Delete option
   ];
+
+
+  const handleAddEmail = () => {
+    setEmailListArray([...emailListArray, ""]);
+  };
+  const validateEmail = (email) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+  const handleRemoveEmail = (index) => {
+    const newEmailList = emailListArray.filter((_, i) => i !== index);
+    setEmailListArray(newEmailList);
+  };
+
 
   return (
     <Box sx={{ padding: 4 }}>
@@ -328,6 +400,68 @@ const Storage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
+  <DialogTitle>Share File</DialogTitle>
+  <DialogContent>
+    <div className="space-y-4">
+      <div>
+        <label className="text-sm font-medium">Visibility</label>
+        <select
+          value={shareOption}
+          onChange={(e) => setShareOption(e.target.value)}
+          className={`w-full px-3 py-2 border outline-none rounded-md ${isDarkMode ? 'bg-[#333] text-white' : 'bg-white text-black'}`}
+        >
+          <option value="public">Public</option>
+          <option value="shared">Shared with Specific Users</option>
+          <option value="private">Private</option>
+        </select>
+      </div>
+      {shareOption === "shared" && (
+        <div>
+          <label className="text-sm font-medium">Emails</label>
+          {emailListArray.map((email, index) => (
+            <div key={index} className="flex gap-2 py-2 items-center">
+              <TextField
+                label="Email"
+                variant="outlined"
+                size="small"
+                value={email}
+                onChange={(e) => {
+                  const newEmails = [...emailListArray];
+                  newEmails[index] = e.target.value;
+                  setEmailListArray(newEmails);
+                }}
+                sx={{ backgroundColor: isDarkMode ? '#444' : '#fff' }}
+              />
+              <button
+                type="button"
+                onClick={() => handleRemoveEmail(index)}
+                className="text-red-500"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={handleAddEmail}
+            className="text-blue-500"
+          >
+            Add Email
+          </button>
+        </div>
+      )}
+    </div>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setShareModalOpen(false)} color="secondary">
+      Cancel
+    </Button>
+    <Button onClick={handleShareFile} color="primary">
+      Share
+    </Button>
+  </DialogActions>
+</Dialog>
     </Box>
   );
 };

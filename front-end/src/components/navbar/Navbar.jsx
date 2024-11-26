@@ -67,14 +67,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
 
     try {
       const result = await dispatch(
-        uploadFile(formData, {
-          onUploadProgress: (progressEvent) => {
-            const progress = Math.round(
-              (progressEvent.loaded / progressEvent.total) * 100
-            );
-            setUploadProgress(progress);
-          },
-        })
+        uploadFile(formData)
       );
 
       if (result.payload?.success) {

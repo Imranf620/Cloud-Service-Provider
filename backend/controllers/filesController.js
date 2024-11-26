@@ -1,49 +1,8 @@
 import catchAsyncError from "../middleware/catchAsyncErrors.js";
 import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
-import ThrottleStream from 'stream-throttle';
-import fs from "fs"
+import sendEmail from "../utils/sendMail.js";
 
-// export const uploadFile = catchAsyncError(async (req, res, next) => {
-//   if (!req.file) {
-//     return apiResponse(false, "No file uploaded", null, 400, res);
-//   }
-
-//   const { customName, originalname, path: filePath, size, mimetype } = req.file;
-//   const userId = req.user;
-
-//   const user = await prisma.user.findFirst({
-//     where: { id: userId },
-//     include: {
-//       files: true,
-//     },
-//   });
-//   if (!user) {
-//     return apiResponse(false, "User not found", null, 404, res);
-//   }
-//   const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
-//   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
-//   const availableStorageInBytes = totalStorageInBytes - totalFileSize;
-//   if(size > availableStorageInBytes){
-//     return apiResponse(false, "Not enough storage", null, 413, res);
-//   }
-
-  
-
-
-//   const file = await prisma.file.create({
-//     data: {
-//       name: originalname,
-//       size: size,
-//       type: mimetype,
-//       path: `uploads/${customName}`,
-//       userId,
-//       private: true,
-//     },
-//   });
-
-//   return apiResponse(true, "File uploaded successfully", file, 200, res);
-// });
 export const uploadFile = catchAsyncError(async (req, res, next) => {
   if (!req.file) {
     return apiResponse(false, "No file uploaded", null, 400, res);
@@ -58,41 +17,54 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
       files: true,
     },
   });
-
   if (!user) {
     return apiResponse(false, "User not found", null, 404, res);
   }
-
-  const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
+  const totalFileSize = user.files.reduce(
+    (total, file) => total + file.size,
+    0
+  );
   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
   const availableStorageInBytes = totalStorageInBytes - totalFileSize;
-
   if (size > availableStorageInBytes) {
     return apiResponse(false, "Not enough storage", null, 413, res);
   }
 
-  const uploadSpeed = 5000; // 50KB per second
-  console.log("Uploading")
+  const calculateDaysRemaining = (subscribedAt, validDays) => {
+    const currentDate = new Date();
+    const subscriptionDate = new Date(subscribedAt);
+    subscriptionDate.setDate(subscriptionDate.getDate() + validDays);
+    return subscriptionDate > new Date();
+  };
 
-  const fileStream = fs.createReadStream(filePath);
-  const throttledStream = new ThrottleStream.Throttle({ rate: uploadSpeed });
+  const daysRemaining =   calculateDaysRemaining(
+    user.subscribedAt,
+    user.validDays
+  );
+  if (!daysRemaining) {
+    return apiResponse(
+      false,
+      "Your subscription has expired. Please renew your subscription.",
+      null,
+      401,
+      res
+    );
+  }
 
-  // Piping the throttled stream to a writable location (e.g., file, S3, etc.)
-  fileStream.pipe(throttledStream).on('end', async () => {
-    const file = await prisma.file.create({
-      data: {
-        name: originalname,
-        size: size,
-        type: mimetype,
-        path: `uploads/${customName}`,
-        userId,
-        private: true,
-      },
-    });
-
-    return apiResponse(true, "File uploaded successfully", file, 200, res);
+  const file = await prisma.file.create({
+    data: {
+      name: originalname,
+      size: size,
+      type: mimetype,
+      path: `uploads/${customName}`,
+      userId,
+      private: true,
+    },
   });
+
+  return apiResponse(true, "File uploaded successfully", file, 200, res);
 });
+
 export const getAllFiles = catchAsyncError(async (req, res, next) => {
   const { orderBy, orderDirection = "asc" } = req.query;
   console.log("order by", orderBy, orderDirection);
@@ -115,6 +87,7 @@ export const getAllFiles = catchAsyncError(async (req, res, next) => {
     },
     include: {
       trash: true,
+      fileShares: true,
     },
   });
 
@@ -150,12 +123,19 @@ export const getVideoFiles = catchAsyncError(async (req, res, next) => {
     orderBy: {
       [orderField]: orderDirection.toLowerCase() === "desc" ? "desc" : "asc",
     },
+    include: {
+      trash: true,
+      fileShares: true,
+    },
+    
   });
+
+  const withoutTrash = videos.filter((video) => video.trash.length === 0);
 
   return apiResponse(
     true,
     "Video files retrieved successfully",
-    videos,
+    withoutTrash,
     200,
     res
   );
@@ -184,6 +164,7 @@ export const getImageFiles = catchAsyncError(async (req, res, next) => {
     },
     include: {
       trash: true,
+      fileShares: true,
     },
   });
 
@@ -225,6 +206,7 @@ export const getDocumentFiles = catchAsyncError(async (req, res, next) => {
     },
     include: {
       trash: true,
+      fileShares: true,
     },
   });
 
@@ -275,6 +257,7 @@ export const getOtherFiles = catchAsyncError(async (req, res, next) => {
     },
     include: {
       trash: true,
+      fileShares: true,
     },
   });
 
@@ -301,6 +284,7 @@ export const getLatestFiles = catchAsyncError(async (req, res, next) => {
     take: 10,
     include: {
       trash: true,
+      fileShares: true,
     },
   });
 
@@ -382,4 +366,198 @@ export const deleteFile = catchAsyncError(async (req, res, next) => {
   });
 
   return apiResponse(true, "File deleted successfully", null, 200, res);
+});
+
+
+// export const shareFile = catchAsyncError(async (req, res, next) => {
+//   const { visibility, emails, fileId } = req.body;
+//   const userId = req.user;
+
+//   const file = await prisma.file.findUnique({
+//     where: { id: fileId },
+//   });
+
+//   if (!file) {
+//     return apiResponse(false, "File not found", null, 404, res);
+//   }
+
+//   if (file.userId !== userId) {
+//     return apiResponse(false, "You are not authorized to share this file", null, 403, res);
+//   }
+
+//   const updatedFile = await prisma.file.update({
+//     where: { id: fileId },
+//     data: {
+//       visibility: visibility.toUpperCase(),
+//     },
+//   });
+
+//   const accessUrl = `${process.env.BASE_URL}/files/${fileId}`;
+//  
+
+//   const message = ` Access Granted Successfully.`
+//   const subject = 'Access Granted to File';
+//   const data = { subject, html,message  };
+
+//   if (visibility.toUpperCase() === 'SHARED' && emails && emails.length > 0) {
+//     const emailPromises = emails.map(async (email) => {
+//       await prisma.fileShare.create({
+//         data: {
+//           fileId: fileId,
+//           userId: userId,
+//           email: email,
+//         },
+//       });
+
+//       await sendEmail(email, data, res);
+//     });
+
+//     await Promise.all(emailPromises);
+//   }
+
+//   return apiResponse(true, "File shared successfully", null, 200, res);
+// });
+
+export const shareFile = catchAsyncError(async (req, res, next) => {
+  const { visibility, emails, fileId } = req.body;
+  const userId = req.user;
+
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+  });
+
+  if (!file) {
+    return apiResponse(false, "File not found", null, 404, res);
+  }
+
+  if (file.userId !== userId) {
+    return apiResponse(false, "You are not authorized to share this file", null, 403, res);
+  }
+
+  let updatedFileData = { visibility: visibility.toUpperCase() };
+
+  const accessUrl = `${process.env.BASE_URL}/files/${fileId}`;
+
+  if (visibility.toUpperCase() === 'PUBLIC') {
+    updatedFileData = { ...updatedFileData, visibility: 'PUBLIC' };
+  }
+
+  const updatedFile = await prisma.file.update({
+    where: { id: fileId },
+    data: updatedFileData,
+  });
+
+  if (visibility.toUpperCase() === 'SHARED' && emails) {
+    const existingShares = await prisma.fileShare.findMany({
+      where: {
+        fileId: fileId,
+      },
+    });
+
+    const existingEmails = existingShares.map(share => share.email);
+
+    const emailsToRemove = existingEmails.filter(email => !emails.includes(email));
+    const emailsToAdd = emails.filter(email => !existingEmails.includes(email));
+
+    await prisma.fileShare.deleteMany({
+      where: {
+        fileId: fileId,
+        email: { in: emailsToRemove },
+      },
+    });
+
+    const html = `
+    <html>
+      <head>
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+          }
+          .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+          }
+          h1 {
+            color: #0073e6;
+            font-size: 24px;
+            text-align: center;
+          }
+          p {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+          }
+          .highlight {
+            font-weight: bold;
+            color: #0073e6;
+          }
+          .button {
+            display: inline-block;
+            background-color: #0073e6;
+            color: #ffffff;
+            padding: 12px 20px;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 16px;
+            margin-top: 20px;
+          }
+          .footer {
+            text-align: center;
+            font-size: 12px;
+            color: #777;
+            margin-top: 30px;
+          }
+          .footer a {
+            color: #0073e6;
+            text-decoration: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <h1>Access Granted</h1>
+          <p>You have been granted access to the file <span class="highlight">${file.name}</span>.</p>
+          <p>You can view or download the file from the following link:</p>
+          <p><a href="${accessUrl}" class="button">Access File</a></p>
+          <p>Thank you for using our service!</p>
+          <div class="footer">
+            <p>If you have any questions, feel free to <a href="mailto:sadibwrites@gmail.com">contact us</a>.</p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+    const emailPromises = emailsToAdd.map(async (email) => {
+      await prisma.fileShare.create({
+        data: {
+          fileId: fileId,
+          userId: userId,
+          email: email,
+        },
+      });
+
+     
+      
+      await sendEmail(email, {
+        subject: 'Access Granted to File',
+        html,
+        message: `Access granted to ${file.name}`,
+      }, res);
+    });
+
+    await Promise.all(emailPromises);
+  }
+
+  return apiResponse(true, "File shared successfully", { file: updatedFile, accessUrl }, 200, res);
 });

@@ -58,6 +58,7 @@ export const uploadFile = createAsyncThunk(
       const res = await axios.get(`${baseApi}/files/get/latest`, {
         withCredentials: true,
       });
+      console.log(res.data);
       return res.data;
     } catch (error) {
       return rejectWithValue(error.response.data);
@@ -69,6 +70,19 @@ export const uploadFile = createAsyncThunk(
         const res = await axios.post(`${baseApi}/trash/${fileId}`, null, {
             withCredentials: true,
           });
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  })
+
+  export const shareFile = createAsyncThunk("/shareFile",async (data,{rejectWithValue}) => {
+    try {
+      console.log("data", data)
+      const res = await axios.post(`${baseApi}/files/share`, data, {
+        withCredentials: true,
+      });
+      console.log("res", res)
       return res.data;
     } catch (error) {
       return rejectWithValue(error.response.data);

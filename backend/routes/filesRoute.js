@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { uploadFile ,getAllFiles, getVideoFiles, getImageFiles, getDocumentFiles, getOtherFiles, getLatestFiles,editFileName,deleteFile} from "../controllers/filesController.js";
+import { uploadFile ,getAllFiles, getVideoFiles, getImageFiles, getDocumentFiles, getOtherFiles, getLatestFiles,editFileName,deleteFile,shareFile} from "../controllers/filesController.js";
 import upload from "../utils/multer.js";
 import { isAuthenticated } from "../middleware/auth.js";
 
@@ -14,5 +14,7 @@ router.get("/get/other", isAuthenticated,getOtherFiles)
 router.get("/get/latest", isAuthenticated,getLatestFiles)
 router.put("/edit/name", isAuthenticated,editFileName)
 router.delete("/delete", isAuthenticated,deleteFile)
+router.post("/share", isAuthenticated,shareFile)
+
 
 export default router;

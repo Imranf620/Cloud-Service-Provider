@@ -11,6 +11,8 @@ import {
 } from '@mui/material';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { useDispatch } from 'react-redux';
+import { getPricing } from '../../features/paymentSlice';
 
 const stripePromise = loadStripe('pk_test_51PgwQeRsPs7LocjUEplV8ZtqASWq9qNoAYtmFCCwyicLgTXcYS6V6yVRXRyZAPvg9zBL5yx6HHuUQUorkM05go1v0021YtXR4L');
 
@@ -21,23 +23,36 @@ const SelectPackage = ({ upgrade = false, onCancel }) => {
   const [storage, setStorage] = useState(100);
   const [price, setPrice] = useState(0);
   const [openModal, setOpenModal] = useState(false);
+  const dispatch = useDispatch()
+  
 
   const availableDays = [7, 14, 30, 60, 90];
   const availableSpeeds = [10, 50, 100, 200, 500];
   const availableStorage = [50, 100, 200, 500, 1000];
+  const [packagePrices, setpackagePrices] = useState({})
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    const fetchPricing = async()=>{
+      const result = await dispatch(getPricing())
+      console.log(result.payload.data)
+      setpackagePrices(result.payload.data)
+    }
+    fetchPricing()
+  }, [])
+  
 
   const pricing = {
-    perDay: 2,
-    perMbps: 0.75,
-    perGbStorage: 0.5,
+    perDayPrice: 2,
+    perMbpsSpeedPrice: 0.75,
+    perGbStoragePrice: 0.5,
   };
 
   // Function to calculate the total price
   const calculatePrice = () => {
     const totalPrice =
-      days * pricing.perDay +
-      (uploadSpeed + downloadSpeed) * pricing.perMbps +
-      storage * pricing.perGbStorage;
+      days * pricing.perDayPrice +
+      (uploadSpeed + downloadSpeed) * pricing.perMbpsSpeedPrice +
+      storage * pricing.perGbStoragePrice;
     setPrice(totalPrice);
   };
 
