@@ -21,7 +21,7 @@ const App = () => {
   const dispatch = useDispatch();
   useEffect(() => {
     dispatch(fetchMyProfile());
-  }, [dispatch]);
+  }, []);
 
   return (
     <Suspense fallback={<Loader />}>

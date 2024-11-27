@@ -2,7 +2,7 @@ export const dataTypes = [
     {
       id: 1,
       size: 12,
-      title: "Document",
+      title: "Documents",
       icon: "ArticleIcon",
       lastUpdated: "2022-05-15",
       color: "#FFA500",

@@ -14,10 +14,16 @@ const ProfileSetting = () => {
   const { user, loading, error } = useSelector(state => state.auth);
 
   const [image, setImage] = useState(null);
-  const [username, setUsername] = useState(user?.name || '');
-  const [email, setEmail] = useState(user?.email || '');
+  const [username, setUsername] = useState(user?.user?.name || '');
+  const [email, setEmail] = useState(user?.user?.email || '');
 
   const dispatch = useDispatch();
+
+  const remainingDays = user?.remainingDays
+  const today = new Date();
+  const expiryDate = new Date(today);
+  expiryDate.setDate(today.getDate() + remainingDays);
+  const expiryDateFormatted = expiryDate.toDateString();
 
   const handleImageChange = (newImage) => {
     setImage(newImage);
@@ -74,7 +80,7 @@ const ProfileSetting = () => {
         )}
         {error && <Typography color="error">{error?.message}</Typography>}
       <Divider sx={{ mb: 3 }} />
-      <SubscriptionInfo />
+      <SubscriptionInfo  expiryDateFormatted={expiryDateFormatted}/>
       <Divider sx={{ mb: 3 }} />
       <DataUsageGraph />
       <Box textAlign="center" mt={3}>

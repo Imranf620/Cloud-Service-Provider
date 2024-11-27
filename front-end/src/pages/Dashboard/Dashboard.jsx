@@ -12,6 +12,10 @@ const Dashboard = () => {
 
   const {user,loading} = useSelector(state=>state.auth)
   const navigate = useNavigate()
+
+  console.log(user)
+
+
  
   const [showPie, setShowPie] = useState(false);
 
@@ -22,11 +26,14 @@ const Dashboard = () => {
    navigate("/packages")
   };
 
+
+
   const handleClosePie = () => {
     setShowPie(false);
   };
 
   console.log(user?.percentageUsed)
+
   return (
     <div className="flex gap-4">
       <section className="md:w-2/3 w-full">

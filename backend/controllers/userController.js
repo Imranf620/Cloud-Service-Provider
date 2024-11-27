@@ -3,8 +3,8 @@ import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import path from "path"
-import fs from 'fs';
+import path from "path";
+import fs from "fs";
 
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -42,9 +42,91 @@ export const register = catchAsyncError(async (req, res, next) => {
       password: hashedPassword,
       role: "USER",
     },
+    include: {
+      files: true,
+      payments: true,
+    },
   });
 
- delete user.password;
+  const videoMimeTypes = ["video/mp4", "video/mkv", "video/avi"];
+  const imageMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  const documentMimeTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", // Excel files
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/zip",
+  ];
+
+  const videoFiles = user.files.filter((file) =>
+    videoMimeTypes.includes(file.type)
+  );
+  const imageFiles = user.files.filter((file) =>
+    imageMimeTypes.includes(file.type)
+  );
+  const documentFiles = user.files.filter((file) =>
+    documentMimeTypes.includes(file.type)
+  );
+  const otherFiles = user.files.filter(
+    (file) =>
+      ![...videoMimeTypes, ...imageMimeTypes, ...documentMimeTypes].includes(
+        file.type
+      )
+  );
+
+  const videoSize = videoFiles.reduce((total, file) => total + file.size, 0);
+  const imageSize = imageFiles.reduce((total, file) => total + file.size, 0);
+  const documentSize = documentFiles.reduce(
+    (total, file) => total + file.size,
+    0
+  );
+  const otherSize = otherFiles.reduce((total, file) => total + file.size, 0);
+
+  // Convert sizes to GB
+  const videoSizeInGB = (videoSize / 1e9).toFixed(2);
+  const imageSizeInGB = (imageSize / 1e9).toFixed(2);
+  const documentSizeInGB = (documentSize / 1e9).toFixed(2);
+  const otherSizeInGB = (otherSize / 1e9).toFixed(2);
+
+  const totalFileSize = user.files.reduce(
+    (total, file) => total + file.size,
+    0
+  );
+  const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+
+  const availableStorageInBytes =
+    totalStorageInBytes > 0 ? totalStorageInBytes - totalFileSize : 100;
+  const percentageUsed =
+    totalStorageInBytes > 0 ? (totalFileSize / totalStorageInBytes) * 100 : 100;
+
+  const currentDate = new Date();
+  const subscribedAt = new Date(user.subscribedAt);
+  const validTillFromSubsAt = user.validDays;
+
+  subscribedAt.setDate(subscribedAt.getDate() + validTillFromSubsAt);
+
+  const remainingDays = Math.max(
+    Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)),
+    0
+  );
+
+  delete user.password;
+
+  const responseData = {
+    user,
+    totalFileSize,
+    availableStorageInBytes,
+    remainingDays,
+    totalStorageInBytes,
+    percentageUsed: percentageUsed.toFixed(2),
+    downloadSpeed: user.downloadSpeed,
+    uploadSpeed: user.uploadSpeed,
+    videoSizeInGB,
+    imageSizeInGB,
+    documentSizeInGB,
+    otherSizeInGB,
+  };
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_SECRET_EXPIRES,
@@ -62,13 +144,12 @@ export const register = catchAsyncError(async (req, res, next) => {
     .json({
       success: true,
       message: "User created successfully",
-      data:user,
+      data: responseData,
     });
 });
 
 export const login = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
-  
 
   if (!email || !password) {
     return apiResponse(
@@ -97,6 +178,10 @@ export const login = catchAsyncError(async (req, res, next) => {
 
   const user = await prisma.user.findUnique({
     where: { email },
+    include: {
+      files: true,
+      payments: true,
+    },
   });
 
   if (!user) {
@@ -109,8 +194,85 @@ export const login = catchAsyncError(async (req, res, next) => {
     return apiResponse(false, "Invalid credentials", null, 401, res);
   }
 
- delete user.password;
+  const videoMimeTypes = ["video/mp4", "video/mkv", "video/avi"];
+  const imageMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  const documentMimeTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", // Excel files
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/zip",
+  ];
 
+  const videoFiles = user.files.filter((file) =>
+    videoMimeTypes.includes(file.type)
+  );
+  const imageFiles = user.files.filter((file) =>
+    imageMimeTypes.includes(file.type)
+  );
+  const documentFiles = user.files.filter((file) =>
+    documentMimeTypes.includes(file.type)
+  );
+  const otherFiles = user.files.filter(
+    (file) =>
+      ![...videoMimeTypes, ...imageMimeTypes, ...documentMimeTypes].includes(
+        file.type
+      )
+  );
+
+  const videoSize = videoFiles.reduce((total, file) => total + file.size, 0);
+  const imageSize = imageFiles.reduce((total, file) => total + file.size, 0);
+  const documentSize = documentFiles.reduce(
+    (total, file) => total + file.size,
+    0
+  );
+  const otherSize = otherFiles.reduce((total, file) => total + file.size, 0);
+
+  // Convert sizes to GB
+  const videoSizeInGB = (videoSize / 1e9).toFixed(2);
+  const imageSizeInGB = (imageSize / 1e9).toFixed(2);
+  const documentSizeInGB = (documentSize / 1e9).toFixed(2);
+  const otherSizeInGB = (otherSize / 1e9).toFixed(2);
+
+  const totalFileSize = user.files.reduce(
+    (total, file) => total + file.size,
+    0
+  );
+  const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+
+  const availableStorageInBytes =
+    totalStorageInBytes > 0 ? totalStorageInBytes - totalFileSize : 100;
+  const percentageUsed =
+    totalStorageInBytes > 0 ? (totalFileSize / totalStorageInBytes) * 100 : 100;
+
+  const currentDate = new Date();
+  const subscribedAt = new Date(user.subscribedAt);
+  const validTillFromSubsAt = user.validDays;
+
+  subscribedAt.setDate(subscribedAt.getDate() + validTillFromSubsAt);
+
+  const remainingDays = Math.max(
+    Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)),
+    0
+  );
+
+  delete user.password;
+
+  const responseData = {
+    user,
+    totalFileSize,
+    availableStorageInBytes,
+    remainingDays,
+    totalStorageInBytes,
+    percentageUsed: percentageUsed.toFixed(2),
+    downloadSpeed: user.downloadSpeed,
+    uploadSpeed: user.uploadSpeed,
+    videoSizeInGB,
+    imageSizeInGB,
+    documentSizeInGB,
+    otherSizeInGB,
+  };
 
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_SECRET_EXPIRES,
@@ -127,18 +289,17 @@ export const login = catchAsyncError(async (req, res, next) => {
     .json({
       success: true,
       message: "Logged in successfully",
-      data:user
+      data: responseData,
     });
 });
 
-
-export const logout = catchAsyncError(async (req,res,next) =>{
-     res.cookie('token', null, {
-        expires: new Date(Date.now()),
-        httpOnly: true,
-    })
-    apiResponse(true, "logged out successfully", null, 200, res);
-})
+export const logout = catchAsyncError(async (req, res, next) => {
+  res.cookie("token", null, {
+    expires: new Date(Date.now()),
+    httpOnly: true,
+  });
+  apiResponse(true, "logged out successfully", null, 200, res);
+});
 
 export const updateUser = catchAsyncError(async (req, res, next) => {
   const userId = req.user;
@@ -150,7 +311,13 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
   };
 
   if (!validateEmail(email)) {
-    return apiResponse(false, "Please enter a valid email address", null, 400, res);
+    return apiResponse(
+      false,
+      "Please enter a valid email address",
+      null,
+      400,
+      res
+    );
   }
 
   const user = await prisma.user.findUnique({
@@ -187,9 +354,21 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
         },
       });
 
-      return apiResponse(true, "Profile updated successfully", updatedUser, 200, res);
+      return apiResponse(
+        true,
+        "Profile updated successfully",
+        updatedUser,
+        200,
+        res
+      );
     } catch (err) {
-      return apiResponse(false, "Failed to update user profile", null, 500, res);
+      return apiResponse(
+        false,
+        "Failed to update user profile",
+        null,
+        500,
+        res
+      );
     }
   } else {
     try {
@@ -198,44 +377,53 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
         data: { name, email },
       });
 
-      return apiResponse(true, "Profile updated successfully", updatedUser, 200, res);
+      return apiResponse(
+        true,
+        "Profile updated successfully",
+        updatedUser,
+        200,
+        res
+      );
     } catch (err) {
-      return apiResponse(false, "Failed to update user profile", null, 500, res);
+      return apiResponse(
+        false,
+        "Failed to update user profile",
+        null,
+        500,
+        res
+      );
     }
   }
 });
 
+export const updatePassword = catchAsyncError(async (req, res, next) => {
+  const id = req.user;
+  const { oldPassword, newPassword } = req.body;
 
+  const user = await prisma.user.findUnique({
+    where: { id },
+  });
 
-export const updatePassword = catchAsyncError(async(req,res,next)=>{
-    const id = req.user;
-    const { oldPassword, newPassword } = req.body;
+  if (!user) {
+    return apiResponse(false, "User not found", null, 401, res);
+  }
 
-    const user = await prisma.user.findUnique({
-        where:{id}
-    })
-    
-    if(!user){
-        return apiResponse(false, "User not found", null, 401, res);
-    }
+  const isPassMatched = await bcrypt.compare(oldPassword, user.password);
+  if (!isPassMatched) {
+    return apiResponse(false, "Invalid credentials", null, 401, res);
+  }
 
-    const isPassMatched = await bcrypt.compare(oldPassword, user.password);
-    if(!isPassMatched){
-        return apiResponse(false, "Invalid credentials", null, 401, res);
-    }
+  const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
+  await prisma.user.update({
+    where: { id },
+    data: {
+      password: hashedPassword,
+    },
+  });
 
- await prisma.user.update({
-        where:{id},
-        data:{
-            password:hashedPassword
-        }
-    })
-
-
-    apiResponse(true, "Password updated successfully", null, 200, res);
-})
+  apiResponse(true, "Password updated successfully", null, 200, res);
+});
 
 export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
   const id = req.user;
@@ -244,19 +432,65 @@ export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
     where: { id },
     include: {
       files: true,
-      payments:true
-    }
+      payments: true,
+    },
   });
 
   if (!user) {
-    return next(new ErrorResponse('User not found', 404));
+    return next(new ErrorResponse("User not found", 404));
   }
+  const videoMimeTypes = ["video/mp4", "video/mkv", "video/avi"];
+  const imageMimeTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+  const documentMimeTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", // Excel files
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/zip",
+  ];
 
-  const totalFileSize = user.files.reduce((total, file) => total + file.size, 0);
+  const videoFiles = user.files.filter((file) =>
+    videoMimeTypes.includes(file.type)
+  );
+  
+  const imageFiles = user.files.filter((file) =>
+    imageMimeTypes.includes(file.type)
+  );
+  const documentFiles = user.files.filter((file) =>
+    documentMimeTypes.includes(file.type)
+  );
+  const otherFiles = user.files.filter(
+    (file) =>
+      ![...videoMimeTypes, ...imageMimeTypes, ...documentMimeTypes].includes(
+        file.type
+      )
+  );
+
+  const videoSize = videoFiles.reduce((total, file) => total + file.size, 0);
+  const imageSize = imageFiles.reduce((total, file) => total + file.size, 0);
+  const documentSize = documentFiles.reduce(
+    (total, file) => total + file.size,
+    0
+  );
+  const otherSize = otherFiles.reduce((total, file) => total + file.size, 0);
+
+  // Convert sizes to GB
+  const videoSizeInGB = (videoSize / 1e9).toFixed(2);
+  const imageSizeInGB = (imageSize / 1e9).toFixed(2);
+  const documentSizeInGB = (documentSize / 1e9).toFixed(2);
+  const otherSizeInGB = (otherSize / 1e9).toFixed(2);
+
+  const totalFileSize = user.files.reduce(
+    (total, file) => total + file.size,
+    0
+  );
   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
 
-const availableStorageInBytes = totalStorageInBytes > 0 ? totalStorageInBytes - totalFileSize : 100;
-const percentageUsed = totalStorageInBytes > 0 ? (totalFileSize / totalStorageInBytes) * 100 : 100;
+  const availableStorageInBytes =
+    totalStorageInBytes > 0 ? totalStorageInBytes - totalFileSize : 100;
+  const percentageUsed =
+    totalStorageInBytes > 0 ? (totalFileSize / totalStorageInBytes) * 100 : 100;
 
   const currentDate = new Date();
   const subscribedAt = new Date(user.subscribedAt);
@@ -264,10 +498,12 @@ const percentageUsed = totalStorageInBytes > 0 ? (totalFileSize / totalStorageIn
 
   subscribedAt.setDate(subscribedAt.getDate() + validTillFromSubsAt);
 
-  const remainingDays = Math.max(Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)), 0) ;
+  const remainingDays = Math.max(
+    Math.ceil((subscribedAt - currentDate) / (1000 * 60 * 60 * 24)),
+    0
+  );
 
   delete user.password;
-  
 
   const responseData = {
     user,
@@ -275,9 +511,13 @@ const percentageUsed = totalStorageInBytes > 0 ? (totalFileSize / totalStorageIn
     availableStorageInBytes,
     remainingDays,
     totalStorageInBytes,
-    percentageUsed:percentageUsed.toFixed(2),
-    downloadSpeed: user.downloadSpeed, 
-    uploadSpeed: user.uploadSpeed, 
+    percentageUsed: percentageUsed.toFixed(2),
+    downloadSpeed: user.downloadSpeed,
+    uploadSpeed: user.uploadSpeed,
+    videoSizeInGB,
+    imageSizeInGB,
+    documentSizeInGB,
+    otherSizeInGB,
   };
 
   apiResponse(true, `Welcome ${user.name}`, responseData, 200, res);
