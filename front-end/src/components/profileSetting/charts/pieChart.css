@@ -11,13 +11,11 @@
       padding-right:40px;
     }
   
-    /* Make the chart responsive */
     .MuiPieChart-root {
-      width: 100% !important;  /* Full width for mobile */
+      width: 100% !important;
       height: auto !important;
     }
   
-    /* Adjust chart size for small screens */
     .MuiPieChart-root {
       width: 280px;
       height: 140px;

@@ -37,7 +37,7 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
     return subscriptionDate > new Date();
   };
 
-  const daysRemaining =   calculateDaysRemaining(
+  const daysRemaining = calculateDaysRemaining(
     user.subscribedAt,
     user.validDays
   );
@@ -127,7 +127,6 @@ export const getVideoFiles = catchAsyncError(async (req, res, next) => {
       trash: true,
       fileShares: true,
     },
-    
   });
 
   const withoutTrash = videos.filter((video) => video.trash.length === 0);
@@ -368,56 +367,6 @@ export const deleteFile = catchAsyncError(async (req, res, next) => {
   return apiResponse(true, "File deleted successfully", null, 200, res);
 });
 
-
-// export const shareFile = catchAsyncError(async (req, res, next) => {
-//   const { visibility, emails, fileId } = req.body;
-//   const userId = req.user;
-
-//   const file = await prisma.file.findUnique({
-//     where: { id: fileId },
-//   });
-
-//   if (!file) {
-//     return apiResponse(false, "File not found", null, 404, res);
-//   }
-
-//   if (file.userId !== userId) {
-//     return apiResponse(false, "You are not authorized to share this file", null, 403, res);
-//   }
-
-//   const updatedFile = await prisma.file.update({
-//     where: { id: fileId },
-//     data: {
-//       visibility: visibility.toUpperCase(),
-//     },
-//   });
-
-//   const accessUrl = `${process.env.BASE_URL}/files/${fileId}`;
-//  
-
-//   const message = ` Access Granted Successfully.`
-//   const subject = 'Access Granted to File';
-//   const data = { subject, html,message  };
-
-//   if (visibility.toUpperCase() === 'SHARED' && emails && emails.length > 0) {
-//     const emailPromises = emails.map(async (email) => {
-//       await prisma.fileShare.create({
-//         data: {
-//           fileId: fileId,
-//           userId: userId,
-//           email: email,
-//         },
-//       });
-
-//       await sendEmail(email, data, res);
-//     });
-
-//     await Promise.all(emailPromises);
-//   }
-
-//   return apiResponse(true, "File shared successfully", null, 200, res);
-// });
-
 export const shareFile = catchAsyncError(async (req, res, next) => {
   const { visibility, emails, fileId } = req.body;
   const userId = req.user;
@@ -431,15 +380,21 @@ export const shareFile = catchAsyncError(async (req, res, next) => {
   }
 
   if (file.userId !== userId) {
-    return apiResponse(false, "You are not authorized to share this file", null, 403, res);
+    return apiResponse(
+      false,
+      "You are not authorized to share this file",
+      null,
+      403,
+      res
+    );
   }
 
   let updatedFileData = { visibility: visibility.toUpperCase() };
 
-  const accessUrl = `${process.env.BASE_URL}/files/${fileId}`;
+  const accessUrl = `${process.env.BASE_URL}/dashboard/shared/${fileId}`;
 
-  if (visibility.toUpperCase() === 'PUBLIC') {
-    updatedFileData = { ...updatedFileData, visibility: 'PUBLIC' };
+  if (visibility.toUpperCase() === "PUBLIC") {
+    updatedFileData = { ...updatedFileData, visibility: "PUBLIC" };
   }
 
   const updatedFile = await prisma.file.update({
@@ -447,17 +402,21 @@ export const shareFile = catchAsyncError(async (req, res, next) => {
     data: updatedFileData,
   });
 
-  if (visibility.toUpperCase() === 'SHARED' && emails) {
+  if (visibility.toUpperCase() === "SHARED" && emails) {
     const existingShares = await prisma.fileShare.findMany({
       where: {
         fileId: fileId,
       },
     });
 
-    const existingEmails = existingShares.map(share => share.email);
+    const existingEmails = existingShares.map((share) => share.email);
 
-    const emailsToRemove = existingEmails.filter(email => !emails.includes(email));
-    const emailsToAdd = emails.filter(email => !existingEmails.includes(email));
+    const emailsToRemove = existingEmails.filter(
+      (email) => !emails.includes(email)
+    );
+    const emailsToAdd = emails.filter(
+      (email) => !existingEmails.includes(email)
+    );
 
     await prisma.fileShare.deleteMany({
       where: {
@@ -547,17 +506,155 @@ export const shareFile = catchAsyncError(async (req, res, next) => {
         },
       });
 
-     
-      
-      await sendEmail(email, {
-        subject: 'Access Granted to File',
-        html,
-        message: `Access granted to ${file.name}`,
-      }, res);
+      await sendEmail(
+        email,
+        {
+          subject: "Access Granted to File",
+          html,
+          message: `Access granted to ${file.name}`,
+        },
+        res
+      );
     });
 
     await Promise.all(emailPromises);
   }
 
-  return apiResponse(true, "File shared successfully", { file: updatedFile, accessUrl }, 200, res);
+  return apiResponse(
+    true,
+    "File shared successfully",
+    { file: updatedFile, accessUrl },
+    200,
+    res
+  );
+});
+
+export const getSingleFile = catchAsyncError(async (req, res, next) => {
+  const { fileId } = req.params;
+  const userId = req.user;
+
+  const file = await prisma.file.findUnique({
+    where: { id: fileId },
+    include: {
+      user: true,
+      fileShares: true,
+    },
+  });
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, name: true, email: true, image: true },
+  });
+
+  const isAllowedToThisUser = file.fileShares.find((file) => {
+    return file.email === user.email;
+  });
+
+  if (!file) {
+    return apiResponse(false, "File not found", null, 404, res);
+  }
+  if (!isAllowedToThisUser) {
+    return apiResponse(
+      false,
+      "You are not authorized to view this file",
+      null,
+      403,
+      res
+    );
+  }
+
+  return apiResponse(true, "File fetched successfully", file, 200, res);
+});
+
+export const getAllAcceessibleFiles = catchAsyncError(
+  async (req, res, next) => {
+    const userId = req.user;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, image: true },
+    });
+
+    if (!user) {
+      return apiResponse(false, "User not found", null, 404, res);
+    }
+
+    const files = await prisma.file.findMany({
+      where:{
+        visibility:{
+          not:"PRIVATE"
+        }
+      },
+      include: {
+        user: true,
+        fileShares: true,
+      },
+    });
+    if (!files) {
+      return apiResponse(false, "No accessible files found", null, 404, res);
+    }
+
+    const accessibleFiles = files
+      .map((file) => {
+        const sharedFiles = file.fileShares.filter(
+          (share) => share.email === user.email
+        );
+        if (sharedFiles.length > 0) {
+          return { ...file, fileShares: sharedFiles };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    if (!accessibleFiles) {
+      return apiResponse(false, "No accessible files found", null, 404, res);
+    }
+    return apiResponse(
+      true,
+      "Accessible files fetched successfully",
+      accessibleFiles,
+      200,
+      res
+    );
+  }
+);
+
+export const getAllFilesSharedByMe = catchAsyncError(async (req, res, next) => {
+  const userId = req.user;
+
+  if (!userId) {
+    return apiResponse(false, "User not found", null, 404, res);
+  }
+
+  const files = await prisma.fileShare.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      file: true,
+    },
+    where: {
+      AND: [
+        {
+          userId,
+        },
+        {
+          file: {
+            visibility: {
+              not: "PRIVATE"  
+            }
+          }
+        }
+      ]
+    },
+    orderBy: {
+      createdAt: "desc",
+    }
+  });
+
+  if (!files || files.length === 0) {
+    return apiResponse(false, "No files shared by you found", null, 404, res);
+  }
+
+  return apiResponse(true, "Files Shared by you found", files, 200, res);
 });

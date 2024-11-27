@@ -4,6 +4,8 @@ import { Folder, Image, Description, Movie, FileCopy, Dashboard } from '@mui/ico
 import DeleteIcon from '@mui/icons-material/Delete';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
+import ShareIcon from '@mui/icons-material/Share';
+import AccessibilityNewIcon from '@mui/icons-material/AccessibilityNew';
 
 const SideBar = ({handleToggle}) => {
   const { isDarkMode } = useTheme();
@@ -16,6 +18,8 @@ const SideBar = ({handleToggle}) => {
     { path: '/dashboard/documents', label: 'Documents', icon: <Description style={{ color: 'white' }} /> },
     { path: '/dashboard/media', label: 'Media', icon: <Movie style={{ color: 'white' }} /> },
     { path: '/dashboard/other', label: 'Other', icon: <FileCopy style={{ color: 'white' }} /> },
+    { path: '/dashboard/all/shared', label: 'Shared', icon: <ShareIcon style={{ color: 'white' }} /> },
+    { path: '/dashboard/all/accessible', label: 'Accessible', icon: <AccessibilityNewIcon style={{ color: 'white' }} /> },
     { path: '/dashboard/bin/all', label: 'Trash', icon: <DeleteIcon style={{ color: 'white' }} /> },
 
   ];

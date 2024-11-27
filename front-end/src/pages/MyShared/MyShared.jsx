@@ -16,12 +16,12 @@ import {
 import ArticleIcon from "@mui/icons-material/Article";
 import DropdownMenu from "../../components/dropdownMenu/DropdownMenu";
 import { useDispatch, useSelector } from "react-redux";
-import { editFileName, fetchFiles, deleteFile ,shareFile} from "../../features/filesSlice";  // Import the deleteFile action
+import { editFileName, fetchFiles, deleteFile ,shareFile, getFilesSharedByMe} from "../../features/filesSlice";  // Import the deleteFile action
 import { toast } from "react-toastify";
 import { reFetchContext } from "../../context/ReFetchContext";
 import { useTheme } from "../../context/ThemeContext";
 
-const Storage = () => {
+const MyShared = () => {
   const { type } = useParams();
   const { isDarkMode } = useTheme();
 
@@ -31,11 +31,7 @@ const Storage = () => {
   const [orderDirection, setOrderDirection] = useState("asc");
   const [page, setPage] = useState(1);
   
-  const [renameModalOpen, setRenameModalOpen] = useState(false);
-  const [renameFileData, setRenameFileData] = useState(null);
-  const [newName, setNewName] = useState("");
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);  // State for delete confirmation dialog
-  const [fileToDelete, setFileToDelete] = useState(null);  // File to delete
+ 
   const {refetch, handleRefetch} = useContext(reFetchContext)
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareOption, setShareOption] = useState("public");
@@ -53,7 +49,8 @@ const Storage = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await dispatch(fetchFiles({ type, sortBy, orderDirection }));
+        const response = await dispatch(getFilesSharedByMe());
+        console.log(response.payload.data);
         setAllData(response?.payload?.data || []);
         setFilteredFiles(response?.payload?.data || []);
       } catch (error) {
@@ -80,32 +77,27 @@ const Storage = () => {
 
   // Action Handlers
   const handleView = (file) => {
-    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
+    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.file.path}`;
     window.open(fileUrl, "_blank");
   };
 
   const handleDownload = (file) => {
-    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
+    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.file.path}`;
     const link = document.createElement("a");
     link.href = fileUrl;
-    link.download = file.name;
+    link.download = file.file.name;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    toast.success(`${file.name} downloaded successfully`);
+    toast.success(`${file.file.name} downloaded successfully`);
   };
 
-  // const handleShare = (file) => {
-  //   const shareUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-  //   navigator.clipboard.writeText(shareUrl);
-  //   toast.success("File link copied to clipboard!");
-  // };
 
   const handleShare = async (file) => {
     setSelectedFile(file);
     setShareModalOpen(true);
-    if (file.fileShares && file.fileShares.length > 0) {
-      setEmailListArray(file.fileShares.map((share) => share.email));
+    if (file.file.fileShares && file.file.fileShares.length > 0) {
+      setEmailListArray(file.file.fileShares.map((share) => share.email));
     } else {
       setEmailListArray([""]);
     }
@@ -120,18 +112,22 @@ const Storage = () => {
     }
   
     const shareData = {
-      fileId: selectedFile.id,
+      fileId: selectedFile.file.id,
       visibility:
         shareOption === "public"
           ? "PUBLIC"
           : shareOption === "shared"
           ? "SHARED"
-          : "PRIVATE", // New case for private visibility
+          : "PRIVATE", 
       emails: shareOption === "shared" ? validEmails : [],
     };
   
     try {
       const result = await dispatch(shareFile(shareData));
+
+      if(shareData.visibility==="PRIVATE"){
+        handleRefetch()
+      }
       if (result?.payload?.success) {
         toast.success(
           shareOption === "public"
@@ -151,72 +147,13 @@ const Storage = () => {
   };
     
 
-  const handleOpenRenameModal = (file) => {
-    setRenameFileData(file);
-    const nameWithoutExtension = file.name.substring(0, file.name.lastIndexOf('.')); // Extract file name without extension
-    const extension = file.name.substring(file.name.lastIndexOf('.')); // Extract file extension
-    setNewName(nameWithoutExtension); // Set the name for the modal to the name without the extension
-    setRenameModalOpen(true);
-  };
-  const handleCloseRenameModal = () => {
-    setRenameModalOpen(false);
-    setRenameFileData(null);
-    setNewName("");
-  };
 
-  const handleRenameFile = async () => {
-    if (!newName.trim()) {
-      toast.error("Name cannot be empty");
-      return;
-    }
-  
-    // Ensure the extension is preserved
-    const fileExtension = renameFileData.name.substring(renameFileData.name.lastIndexOf('.'));
-    const newFileName = `${newName}${fileExtension}`; // Reattach the original file extension
-  
-    try {
-      const response = await dispatch(editFileName({ fileId: renameFileData.id, newName: newFileName }));
-      if (response.payload?.success) {
-        toast.success("File renamed successfully");
-        handleRefetch()
-        handleCloseRenameModal();
-
-      } else {
-        toast.error(response.payload.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to rename file");
-    }
-  };
-
-  const handleDeleteFile = async () => {
-    if (!fileToDelete) return;
-    const fileId = fileToDelete.id;
-  
-    try {
-      const response = await dispatch(deleteFile(fileId));
-      if (response.payload?.success) {
-        toast.success("File deleted successfully");
-        setDeleteModalOpen(false);
-        setFileToDelete(null);
-        
-        // Filter out the deleted file from the filteredFiles array
-        setFilteredFiles((prevFiles) => prevFiles.filter((file) => file.id !== fileId));
-      } else {
-        toast.error(response.payload.message);
-      }
-    } catch (error) {
-      toast.error(error.message || "Failed to delete file");
-    }
-  };
-  
 
   const dropdownOptions = (file) => [
     { label: "View", onClick: () => handleView(file) },
     { label: "Download", onClick: () => handleDownload(file) },
     { label: "Share", onClick: () => handleShare(file) },
-    { label: "Rename", onClick: () => handleOpenRenameModal(file) },
-    { label: "Delete", onClick: () => { setFileToDelete(file); setDeleteModalOpen(true); } }  // Add Delete option
+
   ];
 
 
@@ -245,7 +182,7 @@ const Storage = () => {
         <Typography variant="h6" sx={{ marginBottom: 1 }}>
           Total Space:
           <Typography variant="body1" component="b" sx={{ marginLeft: 1 }}>
-            {allData.reduce((acc, file) => acc + file.size, 0) / 1e6} MB
+            {allData.reduce((acc, file) => acc + file.file.size, 0) / 1e6} MB
           </Typography>
         </Typography>
 
@@ -301,7 +238,7 @@ const Storage = () => {
                   boxShadow: 6,
                 },
               }}
-              key={file.id}
+              key={file.file.id}
             >
               <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                 <Box sx={{ display: "flex", gap: 2 }}>
@@ -321,13 +258,13 @@ const Storage = () => {
                   </div>
                   <Box>
                     <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-                      {file.name}
+                      {file?.file.name}
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                      {(file.size/1e6).toFixed(2)} MB
+                      {(file?.file.size/1e6).toFixed(2)} MB
                     </Typography>
                     <Typography variant="body2" color="textSecondary">
-                    {new Date(file.updatedAt).toLocaleTimeString()}, {new Date(file.updatedAt).toLocaleDateString()}
+                    {new Date(file.sharedAt).toLocaleTimeString()}, {new Date(file.updatedAt).toLocaleDateString()}
                     </Typography>
                 
                     
@@ -355,51 +292,8 @@ const Storage = () => {
         />
       </Box>
 
-      {/* Rename Modal */}
-      <Dialog open={renameModalOpen} onClose={handleCloseRenameModal}>
-        <DialogTitle>Rename File</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            label="New File Name"
-            sx={{
-              marginBottom: 2,
-              marginTop: 2,
-
-              
-            }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseRenameModal} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleRenameFile} color="primary">
-            Rename
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Delete Confirmation Modal */}
-      <Dialog open={deleteModalOpen} onClose={() => setDeleteModalOpen(false)}>
-        <DialogTitle>Delete File</DialogTitle>
-        <DialogContent>
-          <Typography variant="body1">
-            Are you sure you want to delete this file? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDeleteModalOpen(false)} color="secondary">
-            Cancel
-          </Button>
-          <Button onClick={handleDeleteFile} color="primary">
-            Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
+     
+    
       <Dialog open={shareModalOpen} onClose={() => setShareModalOpen(false)}>
   <DialogTitle>Share File</DialogTitle>
   <DialogContent>
@@ -466,4 +360,4 @@ const Storage = () => {
   );
 };
 
-export default Storage;
+export default MyShared;

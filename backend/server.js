@@ -17,8 +17,9 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ["Content-Type", "Authorization"],
   methods: ["GET", "POST", "PUT", "DELETE"],
-  exposedHeaders: ["X-Auth-Token"],
+  exposedHeaders: ["X-Auth-Token", "Authorization"],
 }));
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

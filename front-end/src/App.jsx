@@ -14,6 +14,10 @@ const Storage = React.lazy(() => import("./pages/Storage/Storage"));
 const Bin = React.lazy(() => import("./pages/Bin/Bin.jsx"));
 const Packages = React.lazy(() => import("./pages/Packages/Packages"));
 const Profile = React.lazy(() => import("./pages/Profile/Profile.jsx"));
+const Shared = React.lazy(() => import("./pages/Shared/Shared.jsx"));
+const SingleFile = React.lazy(() => import("./pages/SingleFile/SingleFile.jsx"));
+const MyShared = React.lazy(() => import("./pages/MyShared/MyShared.jsx"));
+
 
 const App = () => {
   const { user } = useSelector((state) => state.auth);
@@ -35,7 +39,11 @@ const App = () => {
             <Route path="/profile" element={<Profile />} />
             <Route path="dashboard/:type" element={<Storage />} />
             <Route path="packages" element={<Packages />} />
+            <Route path="dashboard/all/accessible" element={<Shared />} />
+            <Route path="dashboard/all/shared" element={<MyShared />} />
+            <Route path="dashboard/shared/:id" element={<SingleFile />} />
             <Route path="dashboard/bin/all" element={<Bin />} />
+
 
           </Route>
         </Route>

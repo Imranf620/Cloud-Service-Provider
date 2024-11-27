@@ -89,6 +89,39 @@ export const uploadFile = createAsyncThunk(
     }
   })
 
+  export const getSingleFile = createAsyncThunk("/files/getSingleFile",async (fileId,{rejectWithValue})=>{
+    try {
+      const res = await axios.get(`${baseApi}/files/get/file/${fileId}`, {
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  })
+
+  export const getAllAccessibleFiles = createAsyncThunk("/allAccessibleFiles",async(_,{rejectWithValue})=>{
+    try {
+      const res = await axios.get(`${baseApi}/files/get/shared`, {
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  })
+
+  export const getFilesSharedByMe = createAsyncThunk("/get/my/shared/files",async(_,{rejectWithValue})=>{
+    try {
+      const res = await axios.get(`${baseApi}/files/get/sharedByMe`, {
+        withCredentials: true,
+      });
+      return res.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  })
+
 
 
 const initialState = {
