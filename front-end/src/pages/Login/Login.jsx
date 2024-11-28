@@ -81,9 +81,9 @@ const Login = () => {
           </div>
 
           <div className="text-right">
-            <a href="/forgot-password" className="text-[#7B1FA2] underline">
+            <Link to="/forgot-password" className="text-[#7B1FA2] underline">
               Forgot Password?
-            </a>
+            </Link>
           </div>
 
           <Button

@@ -15,7 +15,7 @@ import { useParams } from "react-router-dom";
 
 const SingleFile = () => {
   const { isDarkMode } = useTheme();
-  const { id } = useParams(); // File ID from URL params
+  const { id } = useParams(); 
   const dispatch = useDispatch();
 
   const { loading } = useSelector((state) => state.files);

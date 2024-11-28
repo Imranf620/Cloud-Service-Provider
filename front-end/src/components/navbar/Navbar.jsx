@@ -35,6 +35,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
   const dispatch = useDispatch();
   const location = useLocation(); 
   const {handleRefetch} = useContext(reFetchContext)
+  const navigate = useNavigate()
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -49,6 +50,9 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
     setMenuOpen(false);
     try {
       const result = await dispatch(logout());
+      if(result.payload.success===true) {
+        navigate("/login");
+      }
       toast.success(result.payload.message);
     } catch (error) {
       toast.error(result.payload.message);

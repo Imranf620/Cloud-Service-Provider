@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
+import sendEmail from "../utils/sendMail.js";
 
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -186,6 +187,10 @@ export const login = catchAsyncError(async (req, res, next) => {
 
   if (!user) {
     return apiResponse(false, "User not found", null, 401, res);
+  }
+
+  if (user.active === false) {
+    return apiResponse(false, "User account is deactivated", null, 401, res);
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
@@ -453,7 +458,7 @@ export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
   const videoFiles = user.files.filter((file) =>
     videoMimeTypes.includes(file.type)
   );
-  
+
   const imageFiles = user.files.filter((file) =>
     imageMimeTypes.includes(file.type)
   );
@@ -521,4 +526,135 @@ export const fetchMyProfile = catchAsyncError(async (req, res, next) => {
   };
 
   apiResponse(true, `Welcome ${user.name}`, responseData, 200, res);
+});
+
+export const getAllUsers = catchAsyncError(async (req, res, next) => {
+  const users = await prisma.user.findMany();
+  apiResponse(true, "All Users", users, 200, res);
+});
+
+export const toggleActiveUser = catchAsyncError(async (req, res, next) => {
+  const { userId } = req.params;
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    return apiResponse(false, "User not found", null, 400, res);
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { active: !user.active },
+  });
+
+  apiResponse(true, "User status toggled successfully", updatedUser, 200, res);
+});
+
+export const forgetPassword = catchAsyncError(async (req, res, next) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return apiResponse(false, "Email is required", null, 400, res);
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return apiResponse(false, "User not found", null, 400, res);
+    }
+
+    const resetToken = Math.floor(Math.random() * 10000); 
+    const resetTokenExpire = new Date(Date.now() + 15 * 60 * 1000); 
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f4f7fa; border-radius: 8px; border: 1px solid #ddd;">
+        <h2 style="text-align: center; color: #333;">Reset Your Password</h2>
+        <p style="font-size: 16px; color: #555; text-align: center;">We received a request to reset your password. Please use the OTP below to complete the process.</p>
+        <div style="text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0; padding: 15px; background-color: #007bff; color: #fff; border-radius: 5px;">
+          ${resetToken}
+        </div>
+        <p style="font-size: 14px; color: #555; text-align: center;">This OTP is valid for the next 15 minutes. If you did not request a password reset, please ignore this email.</p>
+        <p style="font-size: 14px; color: #555; text-align: center;">Regards, <br/> Your Application Team</p>
+      </div>
+    `;
+
+    await sendEmail(email, { 
+      subject: "Reset Password",
+      html: htmlContent,
+    }, res);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken,
+        resetTokenExpire,
+      },
+    });
+
+    return apiResponse(true, "OTP sent to your email", null, 200, res);
+  } catch (error) {
+    console.error(error);
+    return apiResponse(false, "An error occurred", null, 500, res);
+  }
+});
+
+
+export const resetPassword = catchAsyncError(async (req, res, next) => {
+  const { resetToken: token, password, email } = req.body;
+
+  let id ;
+
+  const resetToken= Number(token)
+  if (resetToken && !password) {
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken,
+        resetTokenExpire: { gt: new Date() },
+      }
+    });
+
+
+    if (!user) {
+      return apiResponse(false, "Invalid OTP or token expired", null, 400, res);
+    }
+   
+
+    return apiResponse(true, "Correct OTP. Please enter your new password", null, 200, res);
+  }
+
+  if (resetToken && password) {
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    console.log(id)
+    const user = await prisma.user.findFirst({
+      where: {
+        resetToken,
+      },
+    });
+
+    if (!user) {
+      return apiResponse(false, "User not found", null, 400, res);
+    }
+
+    await prisma.user.update({
+      where:{
+        id: user.id,
+      },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpire: null,
+      }
+
+    })
+
+    return apiResponse(true, "Password updated successfully", null, 200, res);
+  }
+
+  return apiResponse(false, "Invalid request", null, 400, res);
 });

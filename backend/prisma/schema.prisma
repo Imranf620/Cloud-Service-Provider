@@ -18,7 +18,8 @@ model User {
   files         File[]
   sharedFiles   FileShare[]
   active        Boolean      @default(true)
-
+  resetToken    Int?
+  resetTokenExpire DateTime? 
   subscribedAt  DateTime    @default(now())
   validDays     Int         @default(7)
   totalStorage  Int         @default(10)

@@ -66,6 +66,34 @@ export const updateProfile = createAsyncThunk("/update/profile", async (data, { 
       return rejectWithValue(error.response.data);
     }
   });
+
+
+  export const forgotPassword = createAsyncThunk("/forget", async(email,{rejectWithValue})=>{
+
+        try {
+            const res = await axios.post(`${baseApi}/user/forget/password`, email, {
+                withCredentials: true, 
+            })
+            return res.data;
+        } catch (error) {
+            return rejectWithValue(error.response.data);
+        }
+    
+  })
+
+  export const resetPassword = createAsyncThunk("/forget", async(data,{rejectWithValue})=>{
+
+    try {
+        const res = await axios.post(`${baseApi}/user/reset/password`, data, {
+            withCredentials: true, 
+        })
+        return res.data;
+    } catch (error) {
+        return rejectWithValue(error.response.data);
+    }
+
+})
+
   
 
 

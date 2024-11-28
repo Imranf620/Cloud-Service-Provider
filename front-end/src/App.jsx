@@ -17,6 +17,7 @@ const Profile = React.lazy(() => import("./pages/Profile/Profile.jsx"));
 const Shared = React.lazy(() => import("./pages/Shared/Shared.jsx"));
 const SingleFile = React.lazy(() => import("./pages/SingleFile/SingleFile.jsx"));
 const MyShared = React.lazy(() => import("./pages/MyShared/MyShared.jsx"));
+const ForgotPassword = React.lazy(() => import("./pages/ForgotPassword/ForgotPassword.jsx"));
 
 
 const App = () => {
@@ -33,6 +34,8 @@ const App = () => {
         {/* Public Route */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<SignUp />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Layout />}>
             <Route path="" element={<Dashboard />} />
