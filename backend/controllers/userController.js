@@ -6,6 +6,7 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
 import sendEmail from "../utils/sendMail.js";
+import { generatePresignedUrl } from "./s3Service.js";
 
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -306,23 +307,110 @@ export const logout = catchAsyncError(async (req, res, next) => {
   apiResponse(true, "logged out successfully", null, 200, res);
 });
 
+// export const updateUser = catchAsyncError(async (req, res, next) => {
+//   const userId = req.user;
+//   const { name, email } = req.body;
+
+//   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA0-9]{2,}$/;
+//   const validateEmail = (email) => {
+//     return emailRegex.test(email);
+//   };
+
+//   if (!validateEmail(email)) {
+//     return apiResponse(
+//       false,
+//       "Please enter a valid email address",
+//       null,
+//       400,
+//       res
+//     );
+//   }
+
+//   const user = await prisma.user.findUnique({
+//     where: { id: userId },
+//     select: { id: true, name: true, email: true, image: true },
+//   });
+
+//   if (!user) {
+//     return apiResponse(false, "User not found", null, 404, res);
+//   }
+
+//   const oldImage = user.image;
+
+//   if (req.file) {
+//     if (oldImage) {
+//       try {
+//         if (fs.existsSync(oldImage)) {
+//           fs.unlinkSync(oldImage);
+//         }
+//       } catch (err) {
+//         return apiResponse(false, "Failed to delete old image", null, 500, res);
+//       }
+//     }
+
+//     const newImage = req.file.filename;
+
+//     try {
+//       const updatedUser = await prisma.user.update({
+//         where: { id: userId },
+//         data: {
+//           name,
+//           email,
+//           image: `uploads/${newImage}`,
+//         },
+//       });
+
+//       return apiResponse(
+//         true,
+//         "Profile updated successfully",
+//         updatedUser,
+//         200,
+//         res
+//       );
+//     } catch (err) {
+//       return apiResponse(
+//         false,
+//         "Failed to update user profile",
+//         null,
+//         500,
+//         res
+//       );
+//     }
+//   } else {
+//     try {
+//       const updatedUser = await prisma.user.update({
+//         where: { id: userId },
+//         data: { name, email },
+//       });
+
+//       return apiResponse(
+//         true,
+//         "Profile updated successfully",
+//         updatedUser,
+//         200,
+//         res
+//       );
+//     } catch (err) {
+//       return apiResponse(
+//         false,
+//         "Failed to update user profile",
+//         null,
+//         500,
+//         res
+//       );
+//     }
+//   }
+// });
+
 export const updateUser = catchAsyncError(async (req, res, next) => {
   const userId = req.user;
   const { name, email } = req.body;
 
   const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA0-9]{2,}$/;
-  const validateEmail = (email) => {
-    return emailRegex.test(email);
-  };
+  const validateEmail = (email) => emailRegex.test(email);
 
   if (!validateEmail(email)) {
-    return apiResponse(
-      false,
-      "Please enter a valid email address",
-      null,
-      400,
-      res
-    );
+    return apiResponse(false, "Please enter a valid email address", null, 400, res);
   }
 
   const user = await prisma.user.findUnique({
@@ -336,44 +424,36 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
 
   const oldImage = user.image;
 
-  if (req.file) {
-    if (oldImage) {
-      try {
-        if (fs.existsSync(oldImage)) {
-          fs.unlinkSync(oldImage);
-        }
-      } catch (err) {
-        return apiResponse(false, "Failed to delete old image", null, 500, res);
-      }
-    }
-
-    const newImage = req.file.filename;
+  if (req.body.image && req.body.image.fileName && req.body.image.fileType) {
+    const { fileName, fileType } = req.body.image;
 
     try {
+      // Generate a pre-signed URL for uploading the new image to S3
+      const presignedUrl = await generatePresignedUrl(fileName, fileType);
+
+      // If the user has an old image, remove it from S3
+      if (oldImage) {
+        const oldImageKey = oldImage.replace(`https://${process.env.BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`, '');
+        const deleteParams = {
+          Bucket: process.env.BUCKET_NAME,
+          Key: oldImageKey,
+        };
+        await s3Client.send(new DeleteObjectCommand(deleteParams)); // Delete old image from S3
+      }
+
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
           name,
           email,
-          image: `uploads/${newImage}`,
+          image: `https://${process.env.BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${fileName}`,
         },
       });
 
-      return apiResponse(
-        true,
-        "Profile updated successfully",
-        updatedUser,
-        200,
-        res
-      );
+      return apiResponse(true, "Profile updated successfully", updatedUser, 200, res);
     } catch (err) {
-      return apiResponse(
-        false,
-        "Failed to update user profile",
-        null,
-        500,
-        res
-      );
+      console.error('Error updating user profile:', err);
+      return apiResponse(false, "Failed to update user profile", null, 500, res);
     }
   } else {
     try {
@@ -382,24 +462,13 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
         data: { name, email },
       });
 
-      return apiResponse(
-        true,
-        "Profile updated successfully",
-        updatedUser,
-        200,
-        res
-      );
+      return apiResponse(true, "Profile updated successfully", updatedUser, 200, res);
     } catch (err) {
-      return apiResponse(
-        false,
-        "Failed to update user profile",
-        null,
-        500,
-        res
-      );
+      return apiResponse(false, "Failed to update user profile", null, 500, res);
     }
   }
 });
+
 
 export const updatePassword = catchAsyncError(async (req, res, next) => {
   const id = req.user;
