@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import {
   AppBar,
   Toolbar,
@@ -24,18 +24,22 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchMyProfile, logout } from "../../features/userSlice";
 import { uploadFile } from "../../features/filesSlice";
 import { reFetchContext } from "../../context/ReFetchContext";
+import axios from "axios";  // Ensure axios is imported
 
 const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
-  const { loading } = useSelector((state) => state.auth);
+  const { loading, user } = useSelector((state) => state.auth);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [anchorEl, setAnchorEl] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [openDialog, setOpenDialog] = useState(false);
   const dispatch = useDispatch();
-  const location = useLocation(); 
-  const {handleRefetch} = useContext(reFetchContext)
-  const navigate = useNavigate()
+  const location = useLocation();
+  const { handleRefetch } = useContext(reFetchContext);
+  const navigate = useNavigate();
+  const baseApi = import.meta.env.VITE_API_URL;
+  console.log("user", user)
+
 
   const handleMenuClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -50,12 +54,12 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
     setMenuOpen(false);
     try {
       const result = await dispatch(logout());
-      if(result.payload.success===true) {
+      if (result.payload.success === true) {
         navigate("/login");
       }
       toast.success(result.payload.message);
     } catch (error) {
-      toast.error(result.payload.message);
+      toast.error(error.message);
     }
   };
 
@@ -63,30 +67,60 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
     const file = event.target.files[0];
     setSelectedFile(file);
     setOpenDialog(true);
+    console.log("file", file)
   };
 
   const handleConfirmUpload = async () => {
+    if (!selectedFile) {
+      toast.error("No file selected!");
+      return;
+    }
+    
+    setUploadProgress(0); // Reset progress
     const formData = new FormData();
     formData.append("file", selectedFile);
 
     try {
-      const result = await dispatch(
-        uploadFile(formData)
-      );
+      // Step 1: Get presigned URL from backend
+      const response = await axios.post(`${baseApi}/pre-ass-url`, {
+        fileName: selectedFile.name,
+        fileType: selectedFile.type,
+      }, { withCredentials: true });
+
+      const { url, downloadUrl } = response.data;
+
+      // Step 2: Upload the file to S3
+      const uploadResponse = await axios.put(url, selectedFile, {
+        headers: {
+          'Content-Type': selectedFile.type,
+        },
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percent); // Update progress
+        },
+      });
+
+      // Step 3: Append download URL and proceed with file save in backend
+      formData.append("downloadUrl", downloadUrl);
+
+      // Step 4: Upload file info to backend
+      const result = await dispatch(uploadFile({name:selectedFile.name, size:selectedFile.size, type:selectedFile.type, path:downloadUrl}));
+      console.log("result", result);
 
       if (result.payload?.success) {
         toast.success(result.payload.message);
-        handleRefetch()
-        dispatch(fetchMyProfile())
-      }else{
+        handleRefetch();
+        dispatch(fetchMyProfile());
+      } else {
         toast.error(result.payload.message);
       }
-    } catch (error) {
-      toast.error(error.message);
-    }
 
-    setUploadProgress(0); // Reset progress
-    setOpenDialog(false);
+    } catch (error) {
+      toast.error("Error uploading file: " + error.message);
+    } finally {
+      setUploadProgress(0); // Reset progress after the upload attempt
+      setOpenDialog(false);  // Close the dialog after the upload is complete
+    }
   };
 
   const handleCancelUpload = () => {
@@ -94,19 +128,8 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
     setOpenDialog(false);
   };
 
-  const menuStyle = {
-    backgroundColor: isDarkMode ? "#424242" : "#9C27B0",
-    color: isDarkMode ? "#ffffff" : "#ffffff",
-  };
-
-  const menuItemStyle = {
-    "&:hover": {
-      backgroundColor: isDarkMode ? "#616161" : "#e0e0e0",
-    },
-  };
-
   // Close the menu when the user navigates to a new route
-  React.useEffect(() => {
+  useEffect(() => {
     setMenuOpen(false); // Close menu on route change
   }, [location]);
 
@@ -122,7 +145,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
               color="secondary"
               startIcon={<CloudUpload />}
               component="label"
-              disabled={loading} // Disable button during upload
+             
             >
               Upload
               <input type="file" hidden onChange={handleFileChange} />
@@ -145,7 +168,7 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
 
           <Tooltip title="User Profile">
             <IconButton onClick={handleMenuClick} color="inherit">
-              <Avatar alt="User" src="/path-to-your-avatar.jpg" />
+              <Avatar alt="User" src={user?.user?.image}/>
             </IconButton>
           </Tooltip>
 
@@ -154,31 +177,20 @@ const Navbar = ({ toggleDarkMode, isDarkMode, handleToggle }) => {
             open={menuOpen}
             onClose={handleMenuClose}
             PaperProps={{
-              style: menuStyle,
+              style: { backgroundColor: isDarkMode ? "#424242" : "#9C27B0", color: "#ffffff" },
             }}
           >
             <Link to="/profile">
-              <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
-                Profile
-              </MenuItem>
+              <MenuItem onClick={handleMenuClose}>Profile</MenuItem>
             </Link>
             <Link to="/packages">
-              <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
-                Subscriptions
-              </MenuItem>
+              <MenuItem onClick={handleMenuClose}>Subscriptions</MenuItem>
             </Link>
-            <MenuItem onClick={handleMenuClose} sx={menuItemStyle}>
-              Settings
-            </MenuItem>
-            <MenuItem onClick={handleLogout} sx={menuItemStyle}>
-              Logout
-            </MenuItem>
+            <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
+            <MenuItem onClick={handleLogout}>Logout</MenuItem>
           </Menu>
 
-          <Tooltip
-            className="flex items-center"
-            title={isDarkMode ? "Light Mode" : "Dark Mode"}
-          >
+          <Tooltip title={isDarkMode ? "Light Mode" : "Dark Mode"}>
             <IconButton onClick={toggleDarkMode} color="inherit">
               {isDarkMode ? <Brightness7 /> : <Brightness4 />}
             </IconButton>

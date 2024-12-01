@@ -4,6 +4,7 @@ import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
 import fs from 'fs';
 import path from 'path';
+import { deleteFileFromS3 } from "./s3Service.js";
 
 export const moveToTrash = catchAsyncError(async (req, res, next) => {
   const { docId } = req.params;
@@ -187,26 +188,21 @@ export const deleteFileFromTrash = catchAsyncError(async (req, res, next) => {
   }
 
   const filePath = trashedEntry.file.path;
+  console.log("filePath", filePath)
 
-  console.log("File Path:", filePath);
+  console.log("file trashed:", filePath);
 
   if (!filePath) {
     return apiResponse(false, "File path not found", null, 400, res);
   }
 
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
+ 
 
-  const fullFilePath = path.join(__dirname, '..', filePath);
-
-  console.log("Final File Path:", fullFilePath);
-
-  fs.unlink(fullFilePath, (err) => {
-    if (err) {
-      console.error("Error deleting file:", err);
-      return apiResponse(false, "Failed to delete file from storage", null, 500, res);
-    }
-  });
+  try {
+    await deleteFileFromS3(filePath); 
+  } catch (error) {
+    return apiResponse(false, error.message, null, 500, res); 
+  }
 
   await prisma.trash.delete({
     where: {

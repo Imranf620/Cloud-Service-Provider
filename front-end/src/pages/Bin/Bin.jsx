@@ -33,6 +33,8 @@ const Bin = () => {
   const [page, setPage] = useState(1);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [fileToDelete, setFileToDelete] = useState(null);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+
 
   const filesPerPage = 10;
 

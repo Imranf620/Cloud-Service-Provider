@@ -5,7 +5,7 @@ import { isAuthenticated } from "../middleware/auth.js";
 
 const router = Router();
 
-router.post("/upload", isAuthenticated, upload.single("file"),uploadFile)
+router.post("/upload", isAuthenticated, uploadFile)
 router.get("/get/files", isAuthenticated,getAllFiles)
 router.get("/get/media", isAuthenticated,getVideoFiles)
 router.get("/get/images", isAuthenticated,getImageFiles)

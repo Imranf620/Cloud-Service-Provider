@@ -75,3 +75,29 @@ export const getPresignedUrl = async (req, res) => {
 };
 
 
+
+
+
+export const deleteFileFromS3 = async (fileUrl) => {
+  try {
+    console.log("File URL:", fileUrl);
+
+    // Extract the key from the URL by removing the domain and query string
+    const url = new URL(fileUrl);
+    const filePath = url.pathname.split("/").slice(2).join("/"); 
+    console.log("File path is:", filePath);
+
+    const params = {
+      Bucket: process.env.BUCKET_NAME, 
+      Key: filePath,  
+    };
+
+    const command = new DeleteObjectCommand(params);
+    await s3Client.send(command);
+
+    console.log(`File ${filePath} deleted successfully from bucket ${process.env.BUCKET_NAME}`);
+  } catch (error) {
+    console.error(`Error deleting file: ${error.message}`);
+    throw new Error(`Error deleting file: ${error.message}`); // Rethrow error for handling at the controller level
+  }
+};

@@ -37,7 +37,7 @@ export const uploadFile = createAsyncThunk(
       console.log(res)
       return res.data;
     } catch (error) {
-        console.log(error);
+        console.log("error", error);
       return rejectWithValue(error.response.data);
     }
   })

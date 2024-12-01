@@ -3,12 +3,75 @@ import apiResponse from "../utils/apiResponse.js";
 import prisma from "../utils/prisma.js";
 import sendEmail from "../utils/sendMail.js";
 
-export const uploadFile = catchAsyncError(async (req, res, next) => {
-  if (!req.file) {
-    return apiResponse(false, "No file uploaded", null, 400, res);
-  }
+// export const uploadFile = catchAsyncError(async (req, res, next) => {
+//   if (!req.file) {
+//     return apiResponse(false, "No file uploaded", null, 400, res);
+//   }
 
-  const { customName, originalname, path: filePath, size, mimetype } = req.file;
+//   const { customName, originalname, path: filePath, size, mimetype } = req.file;
+//   const userId = req.user;
+
+//   const user = await prisma.user.findFirst({
+//     where: { id: userId },
+//     include: {
+//       files: true,
+//     },
+//   });
+//   if (!user) {
+//     return apiResponse(false, "User not found", null, 404, res);
+//   }
+//   const totalFileSize = user.files.reduce(
+//     (total, file) => total + file.size,
+//     0
+//   );
+//   const totalStorageInBytes = user.totalStorage * 1000 * 1000 * 1000;
+//   const availableStorageInBytes = totalStorageInBytes - totalFileSize;
+//   if (size > availableStorageInBytes) {
+//     return apiResponse(false, "Not enough storage", null, 413, res);
+//   }
+
+//   const calculateDaysRemaining = (subscribedAt, validDays) => {
+//     const currentDate = new Date();
+//     const subscriptionDate = new Date(subscribedAt);
+//     subscriptionDate.setDate(subscriptionDate.getDate() + validDays);
+//     return subscriptionDate > new Date();
+//   };
+
+//   const daysRemaining = calculateDaysRemaining(
+//     user.subscribedAt,
+//     user.validDays
+//   );
+//   if (!daysRemaining) {
+//     return apiResponse(
+//       false,
+//       "Your subscription has expired. Please renew your subscription.",
+//       null,
+//       401,
+//       res
+//     );
+//   }
+
+//   const file = await prisma.file.create({
+//     data: {
+//       name: originalname,
+//       size: size,
+//       type: mimetype,
+//       path: `uploads/${customName}`,
+//       userId,
+//       private: true,
+//     },
+//   });
+
+//   return apiResponse(true, "File uploaded successfully", file, 200, res);
+// });
+
+
+export const uploadFile = catchAsyncError(async (req, res, next) => {
+
+
+  const { name, size:fileSize, type, path } = req.body;
+
+  const size =  Number(fileSize)
   const userId = req.user;
 
   const user = await prisma.user.findFirst({
@@ -53,14 +116,16 @@ export const uploadFile = catchAsyncError(async (req, res, next) => {
 
   const file = await prisma.file.create({
     data: {
-      name: originalname,
-      size: size,
-      type: mimetype,
-      path: `uploads/${customName}`,
+      name,
+      size,
+      type,
+      path,
       userId,
       private: true,
     },
   });
+
+  console.log("fieleee", file)
 
   return apiResponse(true, "File uploaded successfully", file, 200, res);
 });
@@ -363,6 +428,7 @@ export const deleteFile = catchAsyncError(async (req, res, next) => {
       id: fileId,
     },
   });
+  
 
   return apiResponse(true, "File deleted successfully", null, 200, res);
 });

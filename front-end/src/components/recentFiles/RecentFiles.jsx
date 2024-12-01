@@ -5,7 +5,7 @@ import { useTheme } from "../../context/ThemeContext";
 import { useDispatch } from "react-redux";
 import { getLatestFiles, deleteFile, editFileName, shareFile } from "../../features/filesSlice";
 import { toast } from "react-toastify";
-import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, CircularProgress, Typography } from "@mui/material";
 
 const RecentFiles = () => {
   const [recentFiles, setRecentFiles] = useState([]);
@@ -18,6 +18,8 @@ const RecentFiles = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [shareOption, setShareOption] = useState("public");
   const [emailListArray, setEmailListArray] = useState([""]);
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+
 
   useEffect(() => {
     const fetchLatestFiles = async () => {
@@ -58,20 +60,39 @@ const RecentFiles = () => {
   };
 
   const handleView = (file) => {
-    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-    window.open(fileUrl, "_blank");
+    setSelectedFile(file);
+    setViewModalOpen(true);
   };
 
-  const handleDownload = (file) => {
-    const fileUrl = `${import.meta.env.VITE_API_URL}/../../${file.path}`;
-    const link = document.createElement("a");
-    link.href = fileUrl;
-    link.download = file.name;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success(`${file.name} downloaded successfully`);
+
+  const handleDownload = async (file) => {
+    try {
+      
+      const response = await fetch(file.path);
+      const blob = await response.blob(); 
+
+      const blobUrl = URL.createObjectURL(blob);
+
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = file.name; 
+      document.body.appendChild(link);
+
+      // Trigger the download
+      link.click();
+
+      // Clean up by removing the link and revoking the object URL
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+
+      // Success message
+      toast.success(`${file.name} downloaded successfully`);
+    } catch (error) {
+      toast.error(`Failed to download ${file.name}`);
+      console.error(error);
+    }
   };
+
 
   const handleDelete = (file) => {
     setSelectedFile(file);
@@ -104,44 +125,59 @@ const RecentFiles = () => {
     }
   };
 
- const handleShareFile = async () => {
-  const validEmails = emailListArray.filter((email) => validateEmail(email.trim()));
 
-  if (shareOption === "shared" && validEmails.length === 0) {
-    toast.error("Please enter at least one valid email.");
-    return;
-  }
+  const handleShareFile = async () => {
+    const validEmails = emailListArray.filter((email) =>
+      validateEmail(email.trim())
+    );
 
-  const shareData = {
-    fileId: selectedFile.id,
-    visibility:
-      shareOption === "public"
-        ? "PUBLIC"
-        : shareOption === "shared"
-        ? "SHARED"
-        : "PRIVATE", // New case for private visibility
-    emails: shareOption === "shared" ? validEmails : [],
+    if (shareOption === "shared" && validEmails.length === 0) {
+      toast.error("Please enter at least one valid email.");
+      return;
+    }
+    
+
+    const shareData = {
+      fileId: selectedFile.id,
+      visibility:
+        shareOption === "public"
+          ? "PUBLIC"
+          : shareOption === "shared"
+          ? "SHARED"
+          : "PRIVATE", // New case for private visibility
+      emails: shareOption === "shared" ? validEmails : [],
+    };
+
+    try {
+      const result = await dispatch(shareFile(shareData));
+
+      
+      if (result?.payload?.success) {
+        toast.success(
+          shareOption === "public"
+            ? "File shared publicly!"
+            : shareOption === "shared"
+            ? "File shared with specific users!"
+            : "File set to private!"
+        );
+
+        if(shareOption === "public"){
+          const shareUrl = `${FRONT_END_URL}/dashboard/shared/${shareData.fileId}`;
+          navigator.clipboard.writeText(shareUrl);
+          toast.success("File link copied to clipboard!");
+        }
+      
+          
+      } else {
+        toast.error("Failed to share file");
+      }
+    } catch (error) {
+      toast.error("Failed to share file");
+    } finally {
+      setShareModalOpen(false);
+    }
   };
 
-  try {
-    const result = await dispatch(shareFile(shareData));
-    if (result?.payload?.success) {
-      toast.success(
-        shareOption === "public"
-          ? "File shared publicly!"
-          : shareOption === "shared"
-          ? "File shared with specific users!"
-          : "File set to private!"
-      );
-    } else {
-      toast.error("Failed to share file");
-    }
-  } catch (error) {
-    toast.error("Failed to share file");
-  } finally {
-    setShareModalOpen(false);
-  }
-};
   
 
 const handleRename = (file) => {
@@ -328,7 +364,46 @@ const handleRenameFile = async () => {
     </Button>
   </DialogActions>
 </Dialog>
-
+<Dialog open={viewModalOpen} onClose={() => setViewModalOpen(false)} maxWidth="md">
+  <DialogTitle>View File</DialogTitle>
+  <DialogContent>
+    {selectedFile ? (
+      selectedFile.type.startsWith("image") ? (
+        <img
+          src={selectedFile.path}
+          alt="file"
+          style={{ width: "100%", height: "auto" }}
+        />
+      ) : selectedFile.type === "application/pdf" ? (
+        <embed
+          src={selectedFile.path}
+          width="100%"
+          height="500px"
+          type="application/pdf"
+        />
+      ) : selectedFile.type.startsWith("video") ? (
+        <video
+          controls
+          style={{ width: "100%", height: "auto" }}
+        >
+          <source src={selectedFile.path} type={selectedFile.type} />
+          Your browser does not support the video tag.
+        </video>
+      ) : (
+        <Typography variant="body2" color="textSecondary">
+          Cannot preview this file type.
+        </Typography>
+      )
+    ) : (
+      <CircularProgress />
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setViewModalOpen(false)} color="secondary">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
     </div>
   );
 };

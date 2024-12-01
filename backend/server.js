@@ -27,10 +27,6 @@ app.use(cors({
 
 
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const fileDirectory = path.join(__dirname, 'uploads'); 
-app.use('/uploads', express.static(fileDirectory));
 
 cron.schedule("0 0 * * *", async () => {
   console.log("Running scheduled task to delete expired trashed files...");
