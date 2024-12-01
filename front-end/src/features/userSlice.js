@@ -55,6 +55,7 @@ export const logout = createAsyncThunk("/logout",async(_,{rejectWithValue})=>{
 
 export const updateProfile = createAsyncThunk("/update/profile", async (data, { rejectWithValue }) => {
     try {
+        console.log(data)
       const res = await axios.put(`${baseApi}/user/update`, data, {
         headers: {
           'Content-Type': 'multipart/form-data',

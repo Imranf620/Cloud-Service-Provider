@@ -6,12 +6,15 @@ import { deleteExpiredTrashedFiles } from "./controllers/trashCntroller.js";
 import helmet from "helmet"
 import cors from "cors"
 import path from "path";
-import { S3Client, PutObjectCommand }  from '@aws-sdk/client-s3';
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
+import multer from "multer";
 
 const port = process.env.PORT || 8800;
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+const upload = multer();
+app.use(upload.none()); 
 app.use(cookieParser());
 app.use(helmet());
 app.use(cors({
@@ -21,16 +24,6 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE"],
   exposedHeaders: ["X-Auth-Token", "Authorization"],
 }));
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION, 
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY,
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY
-    }
-});
-
-const BUCKET_NAME = process.env.BUCKET_NAME 
 
 
 

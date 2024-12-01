@@ -6,7 +6,6 @@ import jwt from "jsonwebtoken";
 import path from "path";
 import fs from "fs";
 import sendEmail from "../utils/sendMail.js";
-import { generatePresignedUrl } from "./s3Service.js";
 
 export const register = catchAsyncError(async (req, res, next) => {
   const { name, email, password } = req.body;
@@ -402,13 +401,15 @@ export const logout = catchAsyncError(async (req, res, next) => {
 //   }
 // });
 
+
 export const updateUser = catchAsyncError(async (req, res, next) => {
   const userId = req.user;
-  const { name, email } = req.body;
+  const { name, email, image } = req.body;
 
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA0-9]{2,}$/;
-  const validateEmail = (email) => emailRegex.test(email);
-
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const validateEmail = (email) => {
+    return emailRegex.test(email);
+  };
   if (!validateEmail(email)) {
     return apiResponse(false, "Please enter a valid email address", null, 400, res);
   }
@@ -424,29 +425,17 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
 
   const oldImage = user.image;
 
-  if (req.body.image && req.body.image.fileName && req.body.image.fileType) {
-    const { fileName, fileType } = req.body.image;
+  if (image) {
+   
+    
 
     try {
-      // Generate a pre-signed URL for uploading the new image to S3
-      const presignedUrl = await generatePresignedUrl(fileName, fileType);
-
-      // If the user has an old image, remove it from S3
-      if (oldImage) {
-        const oldImageKey = oldImage.replace(`https://${process.env.BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/`, '');
-        const deleteParams = {
-          Bucket: process.env.BUCKET_NAME,
-          Key: oldImageKey,
-        };
-        await s3Client.send(new DeleteObjectCommand(deleteParams)); // Delete old image from S3
-      }
-
       const updatedUser = await prisma.user.update({
         where: { id: userId },
         data: {
           name,
           email,
-          image: `https://${process.env.BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/uploads/${fileName}`,
+          image,
         },
       });
 
@@ -456,6 +445,7 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
       return apiResponse(false, "Failed to update user profile", null, 500, res);
     }
   } else {
+    // If no image, update without changing the image
     try {
       const updatedUser = await prisma.user.update({
         where: { id: userId },
@@ -464,10 +454,14 @@ export const updateUser = catchAsyncError(async (req, res, next) => {
 
       return apiResponse(true, "Profile updated successfully", updatedUser, 200, res);
     } catch (err) {
+      console.error('Error updating user profile:', err);
       return apiResponse(false, "Failed to update user profile", null, 500, res);
     }
   }
 });
+
+
+
 
 
 export const updatePassword = catchAsyncError(async (req, res, next) => {

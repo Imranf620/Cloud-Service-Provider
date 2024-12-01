@@ -2,50 +2,79 @@ import React, { useState } from 'react';
 import { Box, Typography, Divider, CircularProgress, Button } from '@mui/material';
 import ProfileImage from './ProfileImage';
 import UserDetails from './UserDetails';
-import SubscriptionInfo from './SubscriptionInfo';
-import DataUsageGraph from './DataUsageGraph';
 import { useTheme } from '../../context/ThemeContext';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateProfile } from '../../features/userSlice';
 import { toast } from 'react-toastify';
+import axios from 'axios';
 
 const ProfileSetting = () => {
   const { isDarkMode } = useTheme();
   const { user, loading, error } = useSelector(state => state.auth);
 
+  const baseApi = import.meta.env.VITE_API_URL;
+
   const [image, setImage] = useState(null);
   const [username, setUsername] = useState(user?.user?.name || '');
   const [email, setEmail] = useState(user?.user?.email || '');
+  const [uploading, setUploading] = useState(false);
+  const [imageUrl, setImageUrl] = useState(user?.user?.image || '');  // Use existing image URL if present
+  console.log("imageUrl", imageUrl);
 
   const dispatch = useDispatch();
 
-  const remainingDays = user?.remainingDays
-  const today = new Date();
-  const expiryDate = new Date(today);
-  expiryDate.setDate(today.getDate() + remainingDays);
-  const expiryDateFormatted = expiryDate.toDateString();
-
   const handleImageChange = (newImage) => {
     setImage(newImage);
-    console.log(`Image ${newImage}`)
+    console.log(`Image selected: ${newImage}`);
   };
 
   const handleUpdateProfile = async () => {
     const formData = new FormData();
-    formData.append('name', username);
-    formData.append('email', email);
-    
-    // Append the image file if it exists
-    if (image) {
-      formData.append('file', image);
-    }
-    console.log("image is ",image);
+    let imageToUpload = image;
 
-    const result = await dispatch(updateProfile(formData));
+    if (image) {
+      try {
+        setUploading(true);
+
+        const response = await axios.post(`${baseApi}/pre-ass-url`, {
+          fileName: image.name,
+          fileType: image.type,
+          profile:true
+        }, { withCredentials: true });
+
+        const { url, downloadUrl } = response.data;
+
+        console.log('downloadUrl', downloadUrl)
+
+        const s3UploadResponse = await axios.put(url, image, {
+          headers: {
+            'Content-Type': image.type,
+          },
+        });
+
+        if (s3UploadResponse.status === 200) {
+          console.log('Image uploaded to S3:', downloadUrl);
+          const uploadedImageUrl = downloadUrl;
+          setImageUrl(downloadUrl);
+          imageToUpload = uploadedImageUrl;
+        }
+
+      } catch (error) {
+        console.error('Error uploading image:', error);
+        toast.error('Error updating profile');
+        setUploading(false);
+        return;
+      }
+    }
+
+    const result = await dispatch(updateProfile({ name: username, email, image: imageToUpload }));
     if (result.payload?.success) {
       toast.success(result.payload.message);
-      
+    } else {
+      toast.error('Error updating profile');
     }
+
+    setUploading(false);
   };
 
   return (
@@ -63,7 +92,7 @@ const ProfileSetting = () => {
         Profile Settings
       </Typography>
       <Divider sx={{ mb: 3 }} />
-      <ProfileImage onImageChange={handleImageChange} />
+      <ProfileImage onImageChange={handleImageChange} imageUrl={imageUrl} />
       <Divider sx={{ mb: 3 }} />
       <UserDetails
         username={username}
@@ -71,21 +100,15 @@ const ProfileSetting = () => {
         setUsername={setUsername}
         setEmail={setEmail}
       />
-       {loading ? (
-          <CircularProgress />
-        ) : (
-          <Button variant="contained" color="primary" onClick={handleUpdateProfile}>
-            Update Profile
-          </Button>
-        )}
-        {error && <Typography color="error">{error?.message}</Typography>}
+      {loading || uploading ? (
+        <CircularProgress />
+      ) : (
+        <Button variant="contained" color="primary" onClick={handleUpdateProfile}>
+          Update Profile
+        </Button>
+      )}
+      {error && <Typography color="error">{error?.message}</Typography>}
       <Divider sx={{ mb: 3 }} />
-      <SubscriptionInfo  expiryDateFormatted={expiryDateFormatted}/>
-      <Divider sx={{ mb: 3 }} />
-      <DataUsageGraph />
-      <Box textAlign="center" mt={3}>
-       
-      </Box>
     </Box>
   );
 };
